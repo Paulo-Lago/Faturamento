@@ -5,7 +5,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 
 # --- CONFIGURAÇÃO ---
-URL_ICONE = "https://preview.redd.it/d7ajx3csqpzg1.jpeg?width=640&crop=smart&auto=webp&s=52f986fe2c31fe8b67d7502f4b1a02f9646cba1d"
+URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
 LISTA_SERVICOS = [
     "📄 Xérox",
     "🖨️ Impressão",
