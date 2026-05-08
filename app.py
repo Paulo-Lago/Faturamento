@@ -25,10 +25,16 @@ def aplicar_estilo_customizado():
         color: #000000 !important;
     }}
 
-    /* 2. Legibilidade do texto */
-    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3 {{
+    /* 2. Legibilidade do texto e Abas Pretas */
+    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p {{
         color: #000000 !important;
         font-weight: 500 !important;
+    }}
+
+    /* Forçar texto das abas para preto */
+    button[data-testid=\"stMarker\"] p, [data-testid=\"stTab\"] p {{
+        color: #000000 !important;
+        font-weight: bold !important;
     }}
 
     /* 3. Imagem de fundo estilo Marca d'água (Centralizada e Suave) */
@@ -49,7 +55,7 @@ def aplicar_estilo_customizado():
     .bg-image {{
         width: 70vw;
         max-width: 500px;
-        opacity: 0.15 !important; /* Efeito marca d'água suave */
+        opacity: 0.15 !important;
         filter: grayscale(20%) sepia(20%) saturate(150%) hue-rotate(310deg);
     }}
 
@@ -157,7 +163,7 @@ else:
             c.execute("INSERT INTO servicos VALUES (?, ?, ?, ?, ?)", (st.session_state.username, data_serv.strftime('%Y-%m-%d'), cat_serv, desc_serv, valor_serv))
             conn.commit()
             conn.close()
-            st.success("Registrado!")
+            st.success("Registro efetuado com sucesso!")
             st.rerun()
 
     with tab2:
@@ -174,5 +180,11 @@ else:
             if not df_mes.empty:
                 df_rank = df_mes.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
                 fig_rank = px.bar(df_rank, x='categoria', y='valor', title="Faturamento por Categoria", color_discrete_sequence=['#ffc4d8'])
-                fig_rank.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='black')
+                fig_rank.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)', 
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    font=dict(color='black'),
+                    xaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black')),
+                    yaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black'))
+                )
                 st.plotly_chart(fig_rank, use_container_width=True)
