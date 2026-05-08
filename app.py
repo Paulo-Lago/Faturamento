@@ -21,10 +21,13 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
+    /* Fundo principal branco */
     .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
         background-color: #ffffff !important;
         color: #000000 !important;
     }}
+
+    /* Forçar cor preta em textos e labels */
     html, body, [class*=\"st-b\"] {{ color: #000000 !important; }}
     .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, p, span, 
     [data-testid=\"stWidgetLabel\"] p, table, th, td, [data-testid=\"stTable\"] td, 
@@ -33,23 +36,46 @@ def aplicar_estilo_customizado():
         font-weight: 600 !important;
     }}
     
-    /* Fix específico para Calendário e Selectbox com fundo BRANCO */
+    /* Fix para Calendário e Selectbox */
     div[data-baseweb=\"calendar\"] *, div[data-baseweb=\"popover\"] *, 
     div[data-baseweb=\"select\"] *, .stSelectbox div[role=\"button\"] {{
         color: #000000 !important;
         background-color: #ffffff !important;
     }}
 
-    /* Garantindo que os inputs tenham fundo claro mas o seletor seja branco */
+    /* Estilo dos campos de entrada */
     input, textarea {{ color: #000000 !important; background-color: #f0f2f6 !important; }}
     div[data-baseweb=\"select\"] > div {{ background-color: #ffffff !important; }}
 
+    /* Botões */
     button[data-testid=\"baseButton-secondary\"], .stButton > button {{
         background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important;
         width: 100% !important; border: 1px solid #ffb0cc !important; font-weight: bold !important;
     }}
-    .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; }}
-    .bg-image {{ width: 80vw; max-width: 500px; opacity: 0.15; }}
+
+    /* IMAGEM DE FUNDO - Restauração */
+    .main-bg-container {{
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 0 !important;
+        background-color: #ffffff;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        pointer-events: none !important;
+    }}
+    
+    .bg-image {{
+        width: 80vw !important;
+        max-width: 500px !important;
+        opacity: 0.15 !important;
+    }}
+
+    /* Garantir que o conteúdo do Streamlit fique por cima da imagem */
+    [data-testid=\"stVerticalBlock\"] {{ position: relative !important; z-index: 10 !important; }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
     """, unsafe_allow_html=True)
