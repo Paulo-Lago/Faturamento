@@ -19,39 +19,42 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
-    /* Forçar fundo branco e letras pretas em toda a aplicação */
-    .stApp, .stMain, .stHeader, .stAppHeader, .block-container {{ 
-        background-color: #ffffff !important; 
-        color: #000000 !important; 
+    /* Fundo com transparência para mostrar a imagem de fundo */
+    .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        color: #000000 !important;
     }}
-    
-    /* Garantir que textos, labels e spans sejam pretos */
-    h1, h2, h3, p, span, label, .stMarkdown, .stText, [data-testid="stMetricValue"] {{ 
-        color: #000000 !important; 
+
+    h1, h2, h3, p, span, label, .stMarkdown, .stText, [data-testid=\"stMetricValue\"] {{
+        color: #000000 !important;
     }}
 
     .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex !important; justify-content: center; align-items: center; z-index: -2 !important; pointer-events: none; overflow: hidden; }}
-    .egg-icon-bg-persistent {{ width: 85vw; max-width: 650px; opacity: 0.20 !important; filter: sepia(100%) saturate(300%) hue-rotate(310deg); }}
-    
+    .egg-icon-bg-persistent {{ width: 85vw; max-width: 650px; opacity: 0.35 !important; filter: sepia(100%) saturate(300%) hue-rotate(310deg); }}
+
     .sub-texto {{ text-align: center; margin-bottom: 2rem; font-size: 1.1rem; color: #000000 !important; }}
 
-    /* Botões com fundo rosa e letras pretas - Seleção mais específica para garantir aplicação */
-    button[kind="primary"], button[kind="secondary"], .stButton > button {{ 
-        background-color: #ffc4d8 !important; 
-        color: #000000 !important; 
-        border-radius: 12px !important; 
-        font-weight: bold !important; 
-        width: 100% !important; 
+    button[kind=\"primary\"], button[kind=\"secondary\"], .stButton > button {{
+        background-color: #ffc4d8 !important;
+        color: #000000 !important;
+        border-radius: 12px !important;
+        font-weight: bold !important;
+        width: 100% !important;
         border: 1px solid #ffb0cc !important;
     }}
-    
+
     button:hover {{ opacity: 0.8 !important; transform: scale(1.01); }}
 
-    /* Inputs com borda rosa e texto preto */
-    .stTextInput>div>div>input, .stNumberInput>div>div>input {{ 
-        background-color: #ffffff !important; 
-        color: #000000 !important; 
-        border: 1px solid #ffc4d8 !important; 
+    .stTextInput>div>div>input, .stNumberInput>div>div>input {{
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        color: #000000 !important;
+        border: 1px solid #ffc4d8 !important;
+    }}
+
+    /* Transparência nos Tabs */
+    div[data-testid=\"stTabs\"] button {{
+        background-color: transparent !important;
+        color: #000000 !important;
     }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='egg-icon-bg-persistent'></div>
@@ -77,7 +80,7 @@ if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
     user = st.text_input("Insira seu usuário", placeholder="Seu nome de usuário")
     pw = st.text_input("Insira sua senha", type="password", placeholder="Sua senha secreta")
-    
+
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Entrar"):
@@ -107,7 +110,7 @@ if not st.session_state.logged_in:
             else: st.warning("Preencha os campos acima para criar a conta")
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel de Faturamento</h1>", unsafe_allow_html=True)
-    if st.sidebar.button("Sair"): 
+    if st.sidebar.button("Sair"):
         st.session_state.logged_in = False
         st.rerun()
 
@@ -119,9 +122,9 @@ else:
     inicio_mes = hoje.replace(day=1)
 
     if not df_full.empty:
-        df_full['data'] = pd.to_datetime(df_full['data'])
-        fat_dia = df_full[df_full['data'].dt.date == hoje]['valor'].sum()
-        fat_mes = df_full[df_full['data'].dt.date >= inicio_mes]['valor'].sum()
+        df_full['data_dt'] = pd.to_datetime(df_full['data'])
+        fat_dia = df_full[df_full['data_dt'].dt.date == hoje]['valor'].sum()
+        fat_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]['valor'].sum()
         m1, m2 = st.columns(2)
         m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
         m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
@@ -130,14 +133,14 @@ else:
 
     with tab1:
         st.markdown("### Registrar novo serviço")
-        data_serv = st.date_input("Data", value=hoje)
+        data_serv = st.date_input("Data", value=hoje, format="DD/MM/YYYY")
         cat_serv = st.selectbox("Tipo de Serviço", LISTA_SERVICOS)
         desc_serv = st.text_input("Detalhes Adicionais (opcional)")
         valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
         if st.button("Salvar"):
             conn = sqlite3.connect('servicos_financeiro.db')
             c = conn.cursor()
-            c.execute("INSERT INTO servicos VALUES (?, ?, ?, ?, ?)", (st.session_state.username, data_serv, cat_serv, desc_serv, valor_serv))
+            c.execute("INSERT INTO servicos VALUES (?, ?, ?, ?, ?)", (st.session_state.username, data_serv.strftime('%Y-%m-%d'), cat_serv, desc_serv, valor_serv))
             conn.commit()
             conn.close()
             st.success("Registrado!")
@@ -146,21 +149,23 @@ else:
     with tab2:
         if not df_full.empty:
             st.markdown("### Histórico de Serviços")
-            st.dataframe(df_full[['data', 'categoria', 'descricao', 'valor']].sort_values('data', ascending=False), use_container_width=True)
+            df_view = df_full[['data', 'categoria', 'descricao', 'valor']].copy()
+            df_view['data'] = pd.to_datetime(df_view['data']).dt.strftime('%d/%m/%Y')
+            st.dataframe(df_view.sort_values('data', ascending=False), use_container_width=True)
 
     with tab3:
         if not df_full.empty:
             st.markdown("### Qual serviço fatura mais no mês?")
-            df_mes = df_full[df_full['data'].dt.date >= inicio_mes]
+            df_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]
             if not df_mes.empty:
                 df_rank = df_mes.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
-                fig_rank = px.bar(df_rank, x='categoria', y='valor', 
-                                 title=f"Faturamento por Categoria ({hoje.strftime('%B/%Y')})",
+                fig_rank = px.bar(df_rank, x='categoria', y='valor',
+                                 title=f"Faturamento por Categoria ({hoje.strftime('%m/%Y')})",
                                  labels={'categoria': 'Serviço', 'valor': 'Total (R$)'},
                                  color_discrete_sequence=['#ffc4d8'])
                 fig_rank.update_layout(
-                    plot_bgcolor='#ffffff', 
-                    paper_bgcolor='#ffffff', 
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
                     font_color='#000000',
                     xaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black')),
                     yaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black'))
