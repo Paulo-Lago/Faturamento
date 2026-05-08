@@ -5,7 +5,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 
 # --- CONFIGURAÇÃO ---
-URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
+URL_ICONE = "https://preview.redd.it/d7ajx3csqpzg1.jpeg?width=640&crop=smart&auto=webp&s=52f986fe2c31fe8b67d7502f4b1a02f9646cba1d"
 LISTA_SERVICOS = [
     "📄 Xérox",
     "🖨️ Impressão",
@@ -61,7 +61,7 @@ def aplicar_estilo_customizado():
         pointer-events: none;
         background-color: #ffffff;
     }}
-    
+
     .bg-image {{
         width: 80vw;
         max-width: 500px;
@@ -88,7 +88,7 @@ def aplicar_estilo_customizado():
     }}
 
     /* Ajuste de métricas para não quebrar em telas minúsculas */
-    [data-testid=\"stMetric\"] {{ 
+    [data-testid=\"stMetric\"] {{
         background: rgba(255, 255, 255, 0.4);
         padding: 10px;
         border-radius: 10px;
@@ -220,13 +220,14 @@ else:
             df_full['domingo'] = df_full['segunda'] + timedelta(days=6)
             df_full['periodo'] = df_full['segunda'].dt.strftime('%d/%m') + "-" + df_full['domingo'].dt.strftime('%d/%m')
             df_semana = df_full.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
-            
+
             fig_semanal = px.bar(df_semana, x='periodo', y='valor', color_discrete_sequence=['#ffc4d8'])
             fig_semanal.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font=dict(color='black'),
                 margin=dict(l=20, r=20, t=30, b=20),
-                yaxis=dict(title='Faturamento (R$)', tickformat=".2f", tickprefix="R$ ")
+                xaxis=dict(title='Período', title_font=dict(color='black'), tickfont=dict(color='black')),
+                yaxis=dict(title='Faturamento (R$)', title_font=dict(color='black'), tickfont=dict(color='black'), tickformat=".2f", tickprefix="R$ ")
             )
             st.plotly_chart(fig_semanal, use_container_width=True)
