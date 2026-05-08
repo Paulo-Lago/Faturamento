@@ -186,8 +186,8 @@ else:
                     plot_bgcolor='rgba(0,0,0,0)', 
                     paper_bgcolor='rgba(0,0,0,0)', 
                     font=dict(color='black'),
-                    xaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black')),
-                    yaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black'))
+                    xaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black')),
+                    yaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black'))
                 )
                 st.plotly_chart(fig_rank, use_container_width=True)
 
@@ -200,7 +200,7 @@ else:
                 plot_bgcolor='rgba(0,0,0,0)', 
                 paper_bgcolor='rgba(0,0,0,0)', 
                 font=dict(color='black'),
-                xaxis=dict(title='Número da Semana', tickfont=dict(color='black'), titlefont=dict(color='black')),
-                yaxis=dict(title='Faturamento (R$)', tickfont=dict(color='black'), titlefont=dict(color='black'))
+                xaxis=dict(title='Número da Semana', title_font=dict(color='black'), tickfont=dict(color='black')),
+                yaxis=dict(title='Faturamento (R$)', title_font=dict(color='black'), tickfont=dict(color='black'))
             )
             st.plotly_chart(fig_semanal, use_container_width=True)
