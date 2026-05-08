@@ -32,6 +32,10 @@ def aplicar_estilo_customizado():
         color: #000000 !important;
         font-weight: 600 !important;
     }}
+    /* Fix para o Calendário (Date Input) */
+    div[data-baseweb=\"calendar\"] *, div[data-baseweb=\"popover\"] * {{
+        color: #000000 !important;
+    }}
     input, select, textarea, [data-baseweb=\"select\"] div {{ color: #000000 !important; background-color: #f0f2f6 !important; }}
     button[data-testid=\"baseButton-secondary\"], .stButton > button {{
         background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important;
@@ -65,11 +69,9 @@ def run_query(query, params=None, is_select=True):
         sql_mod = query
         p_list = []
         if params:
-            # Substituição robusta de :key por ? para SQLite
             for k, v in params.items():
                 sql_mod = re.sub(f":{k}\\b", "?", sql_mod)
                 p_list.append(v)
-        
         if is_select:
             df = pd.read_sql(sql_mod, conn, params=p_list)
             conn.close()
@@ -82,7 +84,6 @@ def run_query(query, params=None, is_select=True):
             return None
 
 def init_db():
-    # Garante que as tabelas existem com tipos compatíveis
     run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, password TEXT)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data TEXT, categoria TEXT, descricao TEXT, valor NUMERIC)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor NUMERIC, data TEXT)", is_select=False)
@@ -98,26 +99,23 @@ if not st.session_state.logged_in:
     with col_center:
         user = st.text_input("Usuário", key="login_user")
         pw = st.text_input("Senha", type="password", key="login_pw")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("Entrar"):
-                if user:
-                    res = run_query("SELECT password FROM usuarios WHERE username = :u", {"u": user})
-                    if not res.empty and str(res.iloc[0]['password']) == str(pw):
-                        st.session_state.logged_in = True
-                        st.session_state.username = user
-                        st.rerun()
-                    else: st.error("Login ou senha incorretos")
-                else: st.warning("Digite o usuário")
-        with c2:
-            if st.button("Criar Conta"):
-                if user and pw:
-                    check = run_query("SELECT username FROM usuarios WHERE username = :u", {"u": user})
-                    if check.empty:
-                        run_query("INSERT INTO usuarios (username, password) VALUES (:u, :p)", {"u": user, "p": pw}, is_select=False)
-                        st.success("Conta criada com sucesso!")
-                    else: st.error("Usuário já existe.")
-                else: st.warning("Preencha tudo")
+        if st.button("Entrar"):
+            if user:
+                res = run_query("SELECT password FROM usuarios WHERE username = :u", {"u": user})
+                if not res.empty and str(res.iloc[0]['password']) == str(pw):
+                    st.session_state.logged_in = True
+                    st.session_state.username = user
+                    st.rerun()
+                else: st.error("Login ou senha incorretos")
+            else: st.warning("Digite o usuário")
+        if st.button("Criar Conta"):
+            if user and pw:
+                check = run_query("SELECT username FROM usuarios WHERE username = :u", {"u": user})
+                if check.empty:
+                    run_query("INSERT INTO usuarios (username, password) VALUES (:u, :p)", {"u": user, "p": pw}, is_select=False)
+                    st.success("Conta criada com sucesso!")
+                else: st.error("Usuário já existe.")
+            else: st.warning("Preencha tudo")
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
     if st.sidebar.button("Sair"): 
@@ -156,8 +154,8 @@ else:
         if not df_full.empty:
             df_view = df_full[['data', 'categoria', 'descricao', 'valor']].copy()
             df_view['data'] = pd.to_datetime(df_view['data']).dt.strftime('%d/%m/%Y')
-            df_view['valor_fmt'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_view[['data', 'categoria', 'descricao', 'valor_fmt']].sort_values('data', ascending=False), use_container_width=True)
+            df_view['Valor'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
+            st.dataframe(df_view[['data', 'categoria', 'descricao', 'Valor']].sort_values('data', ascending=False), use_container_width=True)
 
     with tab3:
         if not df_full.empty:
@@ -168,19 +166,27 @@ else:
                 fig_rank = px.bar(df_rank, x='categoria', y='valor', color_discrete_sequence=['#ffc4d8'])
                 st.plotly_chart(fig_rank, use_container_width=True)
 
+            st.markdown("### Faturamento Semanal")
+            df_full['segunda'] = df_full['data_dt'] - df_full['data_dt'].dt.weekday.map(lambda x: timedelta(days=x))
+            df_full['domingo'] = df_full['segunda'] + timedelta(days=6)
+            df_full['periodo'] = df_full['segunda'].dt.strftime('%d/%m') + " a " + df_full['domingo'].dt.strftime('%d/%m')
+            df_semana = df_full.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
+            fig_semanal = px.bar(df_semana, x='periodo', y='valor', color_discrete_sequence=['#ffc4d8'])
+            st.plotly_chart(fig_semanal, use_container_width=True)
+
     with tab4:
         c_nome = st.text_input("Nome do Cliente")
-        c_valor = st.number_input("Valor do Crédito (R$)", min_value=0.0, step=0.5)
+        c_valor = st.number_input("Valor (R$)", min_value=0.0, step=0.5)
         cb1, cb2 = st.columns(2)
-        with cb1:
-            if st.button("Adicionar Crédito"):
+        with cb1: 
+            if st.button("Adicionar Crédito"): 
                 run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)", 
-                         {"u": st.session_state.username, "cl": c_nome.upper(), "v": c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                    {"u": st.session_state.username, "cl": c_nome.upper(), "v": c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                 st.rerun()
-        with cb2:
-            if st.button("Usar Crédito"):
+        with cb2: 
+            if st.button("Usar Crédito"): 
                 run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)", 
-                         {"u": st.session_state.username, "cl": c_nome.upper(), "v": -c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                    {"u": st.session_state.username, "cl": c_nome.upper(), "v": -c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                 st.rerun()
         if not df_creds.empty:
             df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
