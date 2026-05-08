@@ -25,7 +25,6 @@ def aplicar_estilo_customizado():
         color: #000000 !important;
     }}
 
-    /* Ajuste de padding para telas pequenas */
     .block-container {{
         padding-top: 2rem !important;
         padding-bottom: 2rem !important;
@@ -34,64 +33,41 @@ def aplicar_estilo_customizado():
         max-width: 100% !important;
     }}
 
-    /* 2. Legibilidade e Abas */
     .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p {{
         color: #000000 !important;
         font-weight: 500 !important;
     }}
 
-    /* Forçar texto das abas para preto e responsividade */
     button[data-testid=\"stMarker\"] p, [data-testid=\"stTab\"] p {{
         color: #000000 !important;
         font-weight: bold !important;
         font-size: clamp(0.8rem, 2.5vw, 1rem) !important;
     }}
 
-    /* 3. Marca d'água Responsiva */
     .main-bg-container {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        display: flex !important;
-        justify-content: center;
-        align-items: center;
-        z-index: -1 !important;
-        pointer-events: none;
-        background-color: #ffffff;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        display: flex !important; justify-content: center; align-items: center;
+        z-index: -1 !important; pointer-events: none; background-color: #ffffff;
     }}
 
     .bg-image {{
-        width: 80vw;
-        max-width: 500px;
-        opacity: 0.12 !important;
+        width: 80vw; max-width: 500px; opacity: 0.12 !important;
         filter: grayscale(20%) sepia(20%) saturate(150%) hue-rotate(310deg);
     }}
 
-    /* 4. Inputs e Botões Full-Width para Mobile */
     button[kind=\"primary\"], button[kind=\"secondary\"], .stButton > button {{
-        background-color: #ffc4d8 !important;
-        color: #000000 !important;
-        border-radius: 12px !important;
-        font-weight: bold !important;
-        border: 1px solid #ffb0cc !important;
-        width: 100% !important;
-        padding: 0.5rem !important;
+        background-color: #ffc4d8 !important; color: #000000 !important;
+        border-radius: 12px !important; font-weight: bold !important;
+        border: 1px solid #ffb0cc !important; width: 100% !important; padding: 0.5rem !important;
     }}
 
     .stTextInput>div>div>input, .stNumberInput>div>div>input, .stSelectbox select {{
         background-color: rgba(255, 255, 255, 0.8) !important;
-        color: #000000 !important;
-        border: 1px solid #ffc4d8 !important;
-        width: 100% !important;
+        color: #000000 !important; border: 1px solid #ffc4d8 !important; width: 100% !important;
     }}
 
-    /* Ajuste de métricas para não quebrar em telas minúsculas */
     [data-testid=\"stMetric\"] {{
-        background: rgba(255, 255, 255, 0.4);
-        padding: 10px;
-        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.4); padding: 10px; border-radius: 10px;
     }}
 
     @media (max-width: 640px) {{
@@ -102,7 +78,7 @@ def aplicar_estilo_customizado():
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
     """, unsafe_allow_html=True)
 
-st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide") # Wide para melhor aproveitamento horizontal
+st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
 aplicar_estilo_customizado()
 
 def init_db():
@@ -110,6 +86,8 @@ def init_db():
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS usuarios (username TEXT UNIQUE, password TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS servicos (username TEXT, data DATE, categoria TEXT, descricao TEXT, valor REAL)')
+    # Nova tabela para créditos de clientes
+    c.execute('CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor REAL, data DATE)')
     conn.commit()
     conn.close()
 
@@ -120,7 +98,6 @@ if 'username' not in st.session_state: st.session_state.username = ""
 
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
-    # Centraliza o formulário de login
     _, col_center, _ = st.columns([1, 2, 1])
     with col_center:
         user = st.text_input("Usuário", key="login_user")
@@ -152,28 +129,27 @@ if not st.session_state.logged_in:
                     except: st.error("Usuário já existe")
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
-    if st.sidebar.button("Sair"):
+    if st.sidebar.button("Sair"): 
         st.session_state.logged_in = False
         st.rerun()
 
     conn = sqlite3.connect('servicos_financeiro.db')
     df_full = pd.read_sql(f"SELECT * FROM servicos WHERE username='{st.session_state.username}'", conn)
+    df_creds = pd.read_sql(f"SELECT * FROM creditos WHERE username='{st.session_state.username}'", conn)
     conn.close()
 
     hoje = datetime.now().date()
     inicio_mes = hoje.replace(day=1)
 
-    # Métricas responsivas
     if not df_full.empty:
         df_full['data_dt'] = pd.to_datetime(df_full['data'])
         fat_dia = df_full[df_full['data_dt'].dt.date == hoje]['valor'].sum()
         fat_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]['valor'].sum()
-
         m1, m2 = st.columns(2)
         m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
         m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
 
-    tab1, tab2, tab3 = st.tabs(["➕ Novo", "📊 Histórico", "📈 Ranking"])
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Novo", "📊 Histórico", "📈 Ranking", "💳 Créditos"])
 
     with tab1:
         st.markdown("### Novo serviço")
@@ -187,7 +163,7 @@ else:
             c.execute("INSERT INTO servicos VALUES (?, ?, ?, ?, ?)", (st.session_state.username, data_serv.strftime('%Y-%m-%d'), cat_serv, desc_serv, valor_serv))
             conn.commit()
             conn.close()
-            st.success("Registro efetuado com sucesso!")
+            st.success("Registro efetuado!")
             st.rerun()
 
     with tab2:
@@ -205,14 +181,7 @@ else:
             if not df_mes.empty:
                 df_rank = df_mes.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
                 fig_rank = px.bar(df_rank, x='categoria', y='valor', color_discrete_sequence=['#ffc4d8'])
-                fig_rank.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='black'),
-                    margin=dict(l=20, r=20, t=30, b=20),
-                    xaxis=dict(title_font=dict(color='black'), tickfont=dict(color='black')),
-                    yaxis=dict(title='Total (R$)', title_font=dict(color='black'), tickfont=dict(color='black'), tickformat=".2f", tickprefix="R$ ")
-                )
+                fig_rank.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='black'))
                 st.plotly_chart(fig_rank, use_container_width=True)
 
             st.markdown("### Faturamento Semanal")
@@ -220,14 +189,42 @@ else:
             df_full['domingo'] = df_full['segunda'] + timedelta(days=6)
             df_full['periodo'] = df_full['segunda'].dt.strftime('%d/%m') + "-" + df_full['domingo'].dt.strftime('%d/%m')
             df_semana = df_full.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
-
             fig_semanal = px.bar(df_semana, x='periodo', y='valor', color_discrete_sequence=['#ffc4d8'])
-            fig_semanal.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='black'),
-                margin=dict(l=20, r=20, t=30, b=20),
-                xaxis=dict(title='Período', title_font=dict(color='black'), tickfont=dict(color='black')),
-                yaxis=dict(title='Faturamento (R$)', title_font=dict(color='black'), tickfont=dict(color='black'), tickformat=".2f", tickprefix="R$ ")
-            )
+            fig_semanal.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='black'), 
+                                      xaxis=dict(title='Período', title_font=dict(color='black'), tickfont=dict(color='black')),
+                                      yaxis=dict(title='Faturamento', title_font=dict(color='black'), tickfont=dict(color='black')))
             st.plotly_chart(fig_semanal, use_container_width=True)
+
+    with tab4:
+        st.markdown("### Gestão de Créditos (Troco)")
+        c_nome = st.text_input("Nome do Cliente")
+        c_valor = st.number_input("Valor do Crédito (R$)", min_value=0.0, step=0.5)
+        
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("Adicionar Crédito"):
+                if c_nome and c_valor > 0:
+                    conn = sqlite3.connect('servicos_financeiro.db')
+                    c = conn.cursor()
+                    c.execute("INSERT INTO creditos VALUES (?, ?, ?, ?)", (st.session_state.username, c_nome.upper(), c_valor, hoje.strftime('%Y-%m-%d')))
+                    conn.commit(); conn.close()
+                    st.success(f"Crédito de R$ {c_valor:.2f} para {c_nome} salvo!")
+                    st.rerun()
+        
+        with col_btn2:
+            if st.button("Usar Crédito (Abater)"):
+                if c_nome and c_valor > 0:
+                    conn = sqlite3.connect('servicos_financeiro.db')
+                    c = conn.cursor()
+                    c.execute("INSERT INTO creditos VALUES (?, ?, ?, ?)", (st.session_state.username, c_nome.upper(), -c_valor, hoje.strftime('%Y-%m-%d')))
+                    conn.commit(); conn.close()
+                    st.warning(f"R$ {c_valor:.2f} debitados de {c_nome}!")
+                    st.rerun()
+
+        if not df_creds.empty:
+            st.markdown("--- ")
+            st.markdown("#### Saldo Atual por Cliente")
+            df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
+            df_saldo = df_saldo[df_saldo['valor'] != 0]
+            df_saldo['valor'] = df_saldo['valor'].apply(lambda x: f"R$ {x:,.2f}")
+            st.table(df_saldo)
