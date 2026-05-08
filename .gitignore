@@ -1,0 +1,15 @@
+%%writefile .gitignore
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Banco de Dados Local
+*.db
+
+# Ambientes Virtuais
+venv/
+env/
+
+# Streamlit
+.streamlit/
