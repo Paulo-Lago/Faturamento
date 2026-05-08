@@ -19,38 +19,38 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
-    /* 1. Tornar o container do Streamlit totalmente transparente */
+    /* 1. Transparência global para ver a marca d'água */
     .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
         background-color: transparent !important;
         color: #000000 !important;
     }}
 
-    /* 2. Adicionar uma camada leve de branco apenas atrás dos textos para legibilidade, se necessário */
-    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label {{
+    /* 2. Legibilidade do texto */
+    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3 {{
         color: #000000 !important;
-        font-weight: 500;
+        font-weight: 500 !important;
     }}
 
-    /* 3. Configuração da imagem de fundo fixa */
-    .main-bg-container {{ 
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100vw; 
-        height: 100vh; 
-        display: flex !important; 
-        justify-content: center; 
-        align-items: center; 
-        z-index: -1 !important; 
-        pointer-events: none; 
-        background-color: #ffffff; /* Fundo base branco */
+    /* 3. Imagem de fundo estilo Marca d'água (Centralizada e Suave) */
+    .main-bg-container {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        z-index: -1 !important;
+        pointer-events: none;
+        background-color: #ffffff;
     }}
     
-    .bg-image {{ 
-        width: 80vw; 
-        max-width: 600px; 
-        opacity: 0.50 !important; /* Aumentado para aparecer mais */
-        filter: sepia(50%) saturate(200%) hue-rotate(310deg);
+    .bg-image {{
+        width: 70vw;
+        max-width: 500px;
+        opacity: 0.15 !important; /* Efeito marca d'água suave */
+        filter: grayscale(20%) sepia(20%) saturate(150%) hue-rotate(310deg);
     }}
 
     /* Botões e Inputs */
@@ -63,12 +63,12 @@ def aplicar_estilo_customizado():
     }}
 
     .stTextInput>div>div>input, .stNumberInput>div>div>input {{
-        background-color: rgba(255, 255, 255, 0.9) !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
         color: #000000 !important;
         border: 1px solid #ffc4d8 !important;
     }}
-    
-    /* Abas transparentes */
+
+    /* Abas */
     div[data-testid=\"stTabs\"] button {{
         background-color: transparent !important;
     }}
@@ -94,8 +94,8 @@ if 'username' not in st.session_state: st.session_state.username = ""
 
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
-    user = st.text_input("Usuário", placeholder="Seu usuário")
-    pw = st.text_input("Senha", type="password", placeholder="Sua senha")
+    user = st.text_input("Usuário", key="login_user")
+    pw = st.text_input("Senha", type="password", key="login_pw")
 
     col1, col2 = st.columns(2)
     with col1:
