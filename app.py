@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 # --- CONFIGURAÇÃO ---
 URL_ICONE = "https://preview.redd.it/d7ajx3csqpzg1.jpeg?width=640&crop=smart&auto=webp&s=52f986fe2c31fe8b67d7502f4b1a02f9646cba1d"
 LISTA_SERVICOS = [
-    "📄 Xérox", 
-    "🖨️ Impressão", 
-    "📝 Currículo", 
-    "🎬 Serviços de Edição", 
-    "🛡️ Plastificação", 
+    "📄 Xérox",
+    "🖨️ Impressão",
+    "📝 Currículo",
+    "🎬 Serviços de Edição",
+    "🛡️ Plastificação",
     "📸 Impressão de Fotos",
     "⚙️ Outros"
 ]
@@ -26,7 +26,7 @@ def aplicar_estilo_customizado():
     }}
     
     /* Garantir que textos, labels e spans sejam pretos */
-    h1, h2, h3, p, span, label, .stMarkdown, .stText {{ 
+    h1, h2, h3, p, span, label, .stMarkdown, .stText, [data-testid="stMetricValue"] {{ 
         color: #000000 !important; 
     }}
 
@@ -35,8 +35,8 @@ def aplicar_estilo_customizado():
     
     .sub-texto {{ text-align: center; margin-bottom: 2rem; font-size: 1.1rem; color: #000000 !important; }}
 
-    /* Botões com fundo rosa e letras pretas */
-    div.stButton > button {{ 
+    /* Botões com fundo rosa e letras pretas - Seleção mais específica para garantir aplicação */
+    button[kind="primary"], button[kind="secondary"], .stButton > button {{ 
         background-color: #ffc4d8 !important; 
         color: #000000 !important; 
         border-radius: 12px !important; 
@@ -45,7 +45,7 @@ def aplicar_estilo_customizado():
         border: 1px solid #ffb0cc !important;
     }}
     
-    div.stButton > button:hover {{ opacity: 0.8; transform: scale(1.01); }}
+    button:hover {{ opacity: 0.8 !important; transform: scale(1.01); }}
 
     /* Inputs com borda rosa e texto preto */
     .stTextInput>div>div>input, .stNumberInput>div>div>input {{ 
