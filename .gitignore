@@ -4,8 +4,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Banco de Dados Local
+# Banco de Dados Local e Backups
 *.db
+backup/
+backup.*
 
 # Ambientes Virtuais
 venv/
