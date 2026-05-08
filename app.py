@@ -20,16 +20,43 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
+    /* Forçar fundo branco e texto preto em toda a aplicação */
     .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
-        background-color: transparent !important;
+        background-color: #ffffff !important;
         color: #000000 !important;
     }}
-    .block-container {{ padding: 2rem 1rem !important; max-width: 100% !important; }}
-    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p,
-    table, th, td, [data-testid=\"stTable\"] td {{ color: #000000 !important; font-weight: 500 !important; }}
+
+    /* Forçar cor preta em TODOS os elementos de texto possíveis */
+    html, body, [class*=\"st-b\"] {{
+        color: #000000 !important;
+    }}
+
+    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, p, span, 
+    [data-testid=\"stWidgetLabel\"] p, table, th, td, [data-testid=\"stTable\"] td, 
+    .stDataFrame, [data-testid=\"stMetricLabel\"] p {{
+        color: #000000 !important;
+        font-weight: 600 !important;
+    }}
+
+    /* Estilo dos Inputs (Campos de texto e números) */
+    input, select, textarea, [data-baseweb=\"select\"] div {{
+        color: #000000 !important;
+        background-color: #f0f2f6 !important;
+    }}
+
+    /* Botões */
+    button[data-testid=\"baseButton-secondary\"], .stButton > button {{
+        background-color: #ffc4d8 !important;
+        color: #000000 !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        border: 1px solid #ffb0cc !important;
+        font-weight: bold !important;
+    }}
+
+    /* Imagem de Fundo */
     .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; }}
-    .bg-image {{ width: 80vw; max-width: 500px; opacity: 0.12; }}
-    button[data-testid=\"baseButton-secondary\"], .stButton > button {{ background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important; width: 100% !important; }}
+    .bg-image {{ width: 80vw; max-width: 500px; opacity: 0.15; }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
     """, unsafe_allow_html=True)
@@ -37,19 +64,16 @@ def aplicar_estilo_customizado():
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
 aplicar_estilo_customizado()
 
-# --- GERENCIAMENTO DE BANCO DE DADOS (HÍBRIDO) ---
+# --- GERENCIAMENTO DE BANCO DE DADOS ---
 def get_connection():
-    try:
-        return st.connection("postgresql", type="sql")
-    except:
-        return None
+    try: return st.connection("postgresql", type="sql")
+    except: return None
 
 def run_query(query, params=None, is_select=True):
     conn_cloud = get_connection()
     if conn_cloud:
         with conn_cloud.session as s:
-            if is_select:
-                return pd.read_sql(text(query), s.bind, params=params)
+            if is_select: return pd.read_sql(text(query), s.bind, params=params)
             else:
                 s.execute(text(query), params)
                 s.commit()
@@ -57,7 +81,6 @@ def run_query(query, params=None, is_select=True):
     else:
         conn = sqlite3.connect('servicos_financeiro.db')
         if is_select:
-            # SQLite usa ? em vez de :nome
             sql_mod = query
             p_list = []
             if params:
@@ -114,9 +137,8 @@ if not st.session_state.logged_in:
                     if check.empty:
                         run_query("INSERT INTO usuarios (username, password) VALUES (:u, :p)", {"u": user, "p": pw}, is_select=False)
                         st.success("Conta criada com sucesso!")
-                    else:
-                        st.error("Este nome de usuário já está em uso.")
-                else: st.warning("Preencha todos os campos")
+                    else: st.error("Usuário já existe.")
+                else: st.warning("Preencha tudo")
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
     if st.sidebar.button("Sair"): 
