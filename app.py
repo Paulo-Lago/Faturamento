@@ -40,10 +40,8 @@ aplicar_estilo_customizado()
 # --- GERENCIAMENTO DE BANCO DE DADOS (HÍBRIDO) ---
 def get_connection():
     try:
-        # Tenta conectar via Streamlit Secrets (Nuvem/Supabase)
         return st.connection("postgresql", type="sql")
     except:
-        # Fallback para SQLite local
         return None
 
 def run_query(query, params=None, is_select=True):
@@ -57,21 +55,32 @@ def run_query(query, params=None, is_select=True):
                 s.commit()
                 return None
     else:
-        # Lógica SQLite
         conn = sqlite3.connect('servicos_financeiro.db')
         if is_select:
-            df = pd.read_sql(query.replace(":", "?"), conn, params=list(params.values()) if params else None)
+            # SQLite usa ? em vez de :nome
+            sql_mod = query
+            p_list = []
+            if params:
+                for k, v in params.items():
+                    sql_mod = sql_mod.replace(f":{k}", "?")
+                    p_list.append(v)
+            df = pd.read_sql(sql_mod, conn, params=p_list)
             conn.close()
             return df
         else:
             c = conn.cursor()
-            c.execute(query.replace(":", "?"), list(params.values()) if params else [])
+            sql_mod = query
+            p_list = []
+            if params:
+                for k, v in params.items():
+                    sql_mod = sql_mod.replace(f":{k}", "?")
+                    p_list.append(v)
+            c.execute(sql_mod, p_list)
             conn.commit()
             conn.close()
             return None
 
 def init_db():
-    # Cria tabelas se não existirem (Funciona em ambos)
     run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT UNIQUE, password TEXT)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data DATE, categoria TEXT, descricao TEXT, valor REAL)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor REAL, data DATE)", is_select=False)
@@ -90,18 +99,24 @@ if not st.session_state.logged_in:
         c1, c2 = st.columns(2)
         with c1:
             if st.button("Entrar"):
-                res = run_query("SELECT password FROM usuarios WHERE username = :u", {"u": user})
-                if not res.empty and res.iloc[0]['password'] == pw:
-                    st.session_state.logged_in = True
-                    st.session_state.username = user
-                    st.rerun()
-                else: st.error("Login inválido")
+                if user:
+                    res = run_query("SELECT password FROM usuarios WHERE username = :u", {"u": user})
+                    if not res.empty and str(res.iloc[0]['password']) == str(pw):
+                        st.session_state.logged_in = True
+                        st.session_state.username = user
+                        st.rerun()
+                    else: st.error("Login ou senha incorretos")
+                else: st.warning("Digite o usuário")
         with c2:
             if st.button("Criar Conta"):
-                try:
-                    run_query("INSERT INTO usuarios VALUES (:u, :p)", {"u": user, "p": pw}, is_select=False)
-                    st.success("Conta criada!")
-                except: st.error("Usuário já existe")
+                if user and pw:
+                    check = run_query("SELECT username FROM usuarios WHERE username = :u", {"u": user})
+                    if check.empty:
+                        run_query("INSERT INTO usuarios (username, password) VALUES (:u, :p)", {"u": user, "p": pw}, is_select=False)
+                        st.success("Conta criada com sucesso!")
+                    else:
+                        st.error("Este nome de usuário já está em uso.")
+                else: st.warning("Preencha todos os campos")
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
     if st.sidebar.button("Sair"): 
@@ -131,7 +146,7 @@ else:
         desc_serv = st.text_input("Detalhes")
         valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
         if st.button("Salvar"):
-            run_query("INSERT INTO servicos VALUES (:u, :d, :c, :de, :v)", 
+            run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)", 
                      {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'), "c": cat_serv, "de": desc_serv, "v": valor_serv}, is_select=False)
             st.success("Registro efetuado!")
             st.rerun()
@@ -158,12 +173,12 @@ else:
         cb1, cb2 = st.columns(2)
         with cb1:
             if st.button("Adicionar Crédito"):
-                run_query("INSERT INTO creditos VALUES (:u, :cl, :v, :d)", 
+                run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)", 
                          {"u": st.session_state.username, "cl": c_nome.upper(), "v": c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                 st.rerun()
         with cb2:
             if st.button("Usar Crédito"):
-                run_query("INSERT INTO creditos VALUES (:u, :cl, :v, :d)", 
+                run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)", 
                          {"u": st.session_state.username, "cl": c_nome.upper(), "v": -c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                 st.rerun()
         if not df_creds.empty:
