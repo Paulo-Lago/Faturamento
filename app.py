@@ -145,11 +145,12 @@ else:
         df_full['data_dt'] = pd.to_datetime(df_full['data'])
         fat_dia = df_full[df_full['data_dt'].dt.date == hoje]['valor'].sum()
         fat_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]['valor'].sum()
+        
         m1, m2 = st.columns(2)
         m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
         m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
 
-    tab1, tab2, tab3 = st.tabs(["➕ Novo Serviço", "📊 Histórico", "📈 Ranking"])
+    tab1, tab2, tab3 = st.tabs(["➕ Novo Serviço", "📊 Histórico", "📈 Ranking & Tendências"])
 
     with tab1:
         st.markdown("### Registrar novo serviço")
@@ -175,11 +176,12 @@ else:
 
     with tab3:
         if not df_full.empty:
-            st.markdown("### Ranking Mensal")
+            # Ranking por Categoria
+            st.markdown("### Faturamento por Categoria (Mês Atual)")
             df_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]
             if not df_mes.empty:
                 df_rank = df_mes.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
-                fig_rank = px.bar(df_rank, x='categoria', y='valor', title="Faturamento por Categoria", color_discrete_sequence=['#ffc4d8'])
+                fig_rank = px.bar(df_rank, x='categoria', y='valor', color_discrete_sequence=['#ffc4d8'])
                 fig_rank.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)', 
                     paper_bgcolor='rgba(0,0,0,0)', 
@@ -188,3 +190,17 @@ else:
                     yaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black'))
                 )
                 st.plotly_chart(fig_rank, use_container_width=True)
+
+            # Faturamento Semanal
+            st.markdown("### Faturamento por Semana")
+            df_full['semana'] = df_full['data_dt'].dt.isocalendar().week
+            df_semana = df_full.groupby('semana')['valor'].sum().reset_index()
+            fig_semanal = px.line(df_semana, x='semana', y='valor', markers=True, color_discrete_sequence=['#ffc4d8'])
+            fig_semanal.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)', 
+                paper_bgcolor='rgba(0,0,0,0)', 
+                font=dict(color='black'),
+                xaxis=dict(title='Número da Semana', tickfont=dict(color='black'), titlefont=dict(color='black')),
+                yaxis=dict(title='Faturamento (R$)', tickfont=dict(color='black'), titlefont=dict(color='black'))
+            )
+            st.plotly_chart(fig_semanal, use_container_width=True)
