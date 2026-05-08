@@ -5,7 +5,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 
 # --- CONFIGURAÇÃO ---
-URL_ICONE = "https://preview.redd.it/d7ajx3csqpzg1.jpeg?width=640&crop=smart&auto=webp&s=52f986fe2c31fe8b67d7502f4b1a02f9646cba1d"
+URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
 LISTA_SERVICOS = [
     "📄 Xérox",
     "🖨️ Impressão",
@@ -33,7 +33,9 @@ def aplicar_estilo_customizado():
         max-width: 100% !important;
     }}
 
-    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p {{
+    /* Forçar cores pretas em textos, labels e TABELAS */
+    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p, 
+    table, th, td, [data-testid=\"stTable\"] td {{
         color: #000000 !important;
         font-weight: 500 !important;
     }}
@@ -86,7 +88,6 @@ def init_db():
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS usuarios (username TEXT UNIQUE, password TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS servicos (username TEXT, data DATE, categoria TEXT, descricao TEXT, valor REAL)')
-    # Nova tabela para créditos de clientes
     c.execute('CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor REAL, data DATE)')
     conn.commit()
     conn.close()
