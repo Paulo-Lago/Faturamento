@@ -5,13 +5,13 @@ import plotly.express as px
 from datetime import datetime, timedelta
 
 # --- CONFIGURAÇÃO ---
-URL_ICONE = "https://preview.redd.it/d7ajx3csqpzg1.jpeg?width=640&crop=smart&auto=webp&s=52f986fe2c31fe8b67d7502f4b1a02f9646cba1d"
+URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
 LISTA_SERVICOS = [
     "📄 Xérox",
     "🖨️ Impressão",
     "📝 Currículo",
-    "🎬 Serviços de Edição",
-    "🛡️ Plastificação",
+    "🖱️ Serviços de Edição",
+    "🗒️ Plastificação",
     "📸 Impressão de Fotos",
     "⚙️ Outros"
 ]
@@ -172,13 +172,11 @@ else:
             st.markdown("### Histórico")
             df_view = df_full[['data', 'categoria', 'descricao', 'valor']].copy()
             df_view['data'] = pd.to_datetime(df_view['data']).dt.strftime('%d/%m/%Y')
-            # Formatação monetária na tabela
-            df_view['valor'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_view.sort_values('data', ascending=False), use_container_width=True)
+            df_view['valor_fmt'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
+            st.dataframe(df_view[['data', 'categoria', 'descricao', 'valor_fmt']].sort_values('data', ascending=False), use_container_width=True)
 
     with tab3:
         if not df_full.empty:
-            # Ranking por Categoria
             st.markdown("### Faturamento por Categoria (Mês Atual)")
             df_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]
             if not df_mes.empty:
@@ -193,16 +191,21 @@ else:
                 )
                 st.plotly_chart(fig_rank, use_container_width=True)
 
-            # Faturamento Semanal (Barras)
-            st.markdown("### Faturamento por Semana")
-            df_full['semana'] = df_full['data_dt'].dt.isocalendar().week
-            df_semana = df_full.groupby('semana')['valor'].sum().reset_index()
-            fig_semanal = px.bar(df_semana, x='semana', y='valor', color_discrete_sequence=['#ffc4d8'])
+            # Faturamento Semanal
+            st.markdown("### Faturamento por Semana (Intervalo)")
+            # Calcular o início da semana (segunda-feira)
+            df_full['segunda'] = df_full['data_dt'] - df_full['data_dt'].dt.weekday.map(lambda x: timedelta(days=x))
+            df_full['domingo'] = df_full['segunda'] + timedelta(days=6)
+            df_full['periodo_semanal'] = df_full['segunda'].dt.strftime('%d/%m/%y') + " - " + df_full['domingo'].dt.strftime('%d/%m/%y')
+            
+            df_semana = df_full.groupby(['segunda', 'periodo_semanal'])['valor'].sum().reset_index().sort_values('segunda')
+            
+            fig_semanal = px.bar(df_semana, x='periodo_semanal', y='valor', color_discrete_sequence=['#ffc4d8'])
             fig_semanal.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
                 font=dict(color='black'),
-                xaxis=dict(title='Número da Semana', title_font=dict(color='black'), tickfont=dict(color='black')),
+                xaxis=dict(title='Período', title_font=dict(color='black'), tickfont=dict(color='black')),
                 yaxis=dict(title='Faturamento (R$)', title_font=dict(color='black'), tickfont=dict(color='black'), tickformat=".2f", tickprefix="R$ ")
             )
             st.plotly_chart(fig_semanal, use_container_width=True)
