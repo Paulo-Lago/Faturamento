@@ -19,13 +19,22 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
-    .stApp, .stMain, .stHeader, .stAppHeader, .block-container {{ background-color: transparent !important; color: black !important; }}
-    body {{ background-color: white !important; }}
+    .stApp, .stMain, .stHeader, .stAppHeader, .block-container {{ background-color: #ffffff !important; color: black !important; }}
+    body {{ background-color: #ffffff !important; }}
     .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex !important; justify-content: center; align-items: center; z-index: -2 !important; pointer-events: none; overflow: hidden; }}
-    .egg-icon-bg-persistent {{ width: 85vw; max-width: 650px; opacity: 0.10 !important; filter: grayscale(100%); }}
-    h1 {{ font-size: calc(1.6rem + 1vw) !important; text-align: center; margin-bottom: 0.5rem; }}
+    .egg-icon-bg-persistent {{ width: 85vw; max-width: 650px; opacity: 0.20 !important; filter: sepia(100%) saturate(300%) hue-rotate(310deg); }}
+    h1, h2, h3, p, span, label {{ color: #000000 !important; }}
     .sub-texto {{ text-align: center; margin-bottom: 2rem; font-size: 1.1rem; opacity: 0.7; }}
-    div.stButton > button {{ background-color: #2E86C1 !important; color: white !important; border-radius: 12px !important; font-weight: bold !important; width: 100% !important; }}
+    div.stButton > button {{ 
+        background-color: #ffc4d8 !important; 
+        color: black !important; 
+        border-radius: 12px !important; 
+        font-weight: bold !important; 
+        width: 100% !important; 
+        border: 1px solid #ffb0cc !important;
+    }}
+    div.stButton > button:hover {{ opacity: 0.8; transform: scale(1.01); }}
+    .stTextInput>div>div>input {{ background-color: #ffffff !important; border: 1px solid #ffc4d8 !important; }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='egg-icon-bg-persistent'></div>
     """, unsafe_allow_html=True)
@@ -47,20 +56,37 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'username' not in st.session_state: st.session_state.username = ""
 
 if not st.session_state.logged_in:
-    st.markdown("<h1>Gestor de Serviços</h1>", unsafe_allow_html=True)
-    user = st.text_input("Usuário")
-    pw = st.text_input("Senha", type="password")
-    if st.button("Entrar"):
-        conn = sqlite3.connect('servicos_financeiro.db')
-        c = conn.cursor()
-        c.execute("SELECT password FROM usuarios WHERE username = ?", (user,))
-        res = c.fetchone()
-        conn.close()
-        if res and res[0] == pw:
-            st.session_state.logged_in = True
-            st.session_state.username = user
-            st.rerun()
-        else: st.error("Erro de login")
+    st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
+    user = st.text_input("Insira seu usuário", placeholder="Seu nome de usuário")
+    pw = st.text_input("Insira sua senha", type="password", placeholder="Sua senha secreta")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Entrar"):
+            if user and pw:
+                conn = sqlite3.connect('servicos_financeiro.db')
+                c = conn.cursor()
+                c.execute("SELECT password FROM usuarios WHERE username = ?", (user,))
+                res = c.fetchone()
+                conn.close()
+                if res and res[0] == pw:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user
+                    st.rerun()
+                else: st.error("Login ou senha inválidos")
+            else: st.warning("Preencha todos os campos")
+    with col2:
+        if st.button("Criar Conta"):
+            if user and pw:
+                try:
+                    conn = sqlite3.connect('servicos_financeiro.db')
+                    c = conn.cursor()
+                    c.execute("INSERT INTO usuarios VALUES (?, ?)", (user, pw))
+                    conn.commit()
+                    conn.close()
+                    st.success("Conta criada com sucesso!")
+                except: st.error("Este usuário já existe")
+            else: st.warning("Preencha os campos acima para criar a conta")
 else:
     st.markdown(f"<h1>Painel de Faturamento</h1>", unsafe_allow_html=True)
     if st.sidebar.button("Sair"): 
@@ -112,7 +138,8 @@ else:
                 fig_rank = px.bar(df_rank, x='categoria', y='valor', 
                                  title=f"Faturamento por Categoria ({hoje.strftime('%B/%Y')})",
                                  labels={'categoria': 'Serviço', 'valor': 'Total (R$)'},
-                                 color='valor', color_continuous_scale='Viridis')
+                                 color_discrete_sequence=['#ffc4d8'])
+                fig_rank.update_layout(plot_bgcolor='#ffffff', paper_bgcolor='#ffffff')
                 st.plotly_chart(fig_rank, use_container_width=True)
             else:
                 st.info("Ainda não há dados para o mês atual.")
