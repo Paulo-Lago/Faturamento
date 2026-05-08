@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
 from sqlalchemy import text
+import re
 
 # --- CONFIGURAÇÃO ---
 URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
@@ -20,41 +21,22 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
-    /* Forçar fundo branco e texto preto em toda a aplicação */
     .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
         background-color: #ffffff !important;
         color: #000000 !important;
     }}
-
-    /* Forçar cor preta em TODOS os elementos de texto possíveis */
-    html, body, [class*=\"st-b\"] {{
-        color: #000000 !important;
-    }}
-
+    html, body, [class*=\"st-b\"] {{ color: #000000 !important; }}
     .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, p, span, 
     [data-testid=\"stWidgetLabel\"] p, table, th, td, [data-testid=\"stTable\"] td, 
     .stDataFrame, [data-testid=\"stMetricLabel\"] p {{
         color: #000000 !important;
         font-weight: 600 !important;
     }}
-
-    /* Estilo dos Inputs (Campos de texto e números) */
-    input, select, textarea, [data-baseweb=\"select\"] div {{
-        color: #000000 !important;
-        background-color: #f0f2f6 !important;
-    }}
-
-    /* Botões */
+    input, select, textarea, [data-baseweb=\"select\"] div {{ color: #000000 !important; background-color: #f0f2f6 !important; }}
     button[data-testid=\"baseButton-secondary\"], .stButton > button {{
-        background-color: #ffc4d8 !important;
-        color: #000000 !important;
-        border-radius: 12px !important;
-        width: 100% !important;
-        border: 1px solid #ffb0cc !important;
-        font-weight: bold !important;
+        background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important;
+        width: 100% !important; border: 1px solid #ffb0cc !important; font-weight: bold !important;
     }}
-
-    /* Imagem de Fundo */
     .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; }}
     .bg-image {{ width: 80vw; max-width: 500px; opacity: 0.15; }}
     </style>
@@ -80,33 +62,30 @@ def run_query(query, params=None, is_select=True):
                 return None
     else:
         conn = sqlite3.connect('servicos_financeiro.db')
+        sql_mod = query
+        p_list = []
+        if params:
+            # Substituição robusta de :key por ? para SQLite
+            for k, v in params.items():
+                sql_mod = re.sub(f":{k}\\b", "?", sql_mod)
+                p_list.append(v)
+        
         if is_select:
-            sql_mod = query
-            p_list = []
-            if params:
-                for k, v in params.items():
-                    sql_mod = sql_mod.replace(f":{k}", "?")
-                    p_list.append(v)
             df = pd.read_sql(sql_mod, conn, params=p_list)
             conn.close()
             return df
         else:
             c = conn.cursor()
-            sql_mod = query
-            p_list = []
-            if params:
-                for k, v in params.items():
-                    sql_mod = sql_mod.replace(f":{k}", "?")
-                    p_list.append(v)
             c.execute(sql_mod, p_list)
             conn.commit()
             conn.close()
             return None
 
 def init_db():
-    run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT UNIQUE, password TEXT)", is_select=False)
-    run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data DATE, categoria TEXT, descricao TEXT, valor REAL)", is_select=False)
-    run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor REAL, data DATE)", is_select=False)
+    # Garante que as tabelas existem com tipos compatíveis
+    run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, password TEXT)", is_select=False)
+    run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data TEXT, categoria TEXT, descricao TEXT, valor NUMERIC)", is_select=False)
+    run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor NUMERIC, data TEXT)", is_select=False)
 
 init_db()
 
