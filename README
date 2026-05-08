@@ -1,0 +1,30 @@
+# Gestor de Serviços & Faturamento
+
+Sistema profissional desenvolvido em Python com **Streamlit** para gerenciamento de pequenos negócios e prestadores de serviço.
+
+## 🚀 Funcionalidades
+- **Controle de Acesso**: Sistema de login e criação de conta.
+- **Registro de Serviços**: Categorias pré-definidas (Xérox, Impressão, Currículo, Edição, etc).
+- **Dashboard Financeiro**: Visualização de faturamento diário, semanal e mensal.
+- **Ranking de Serviços**: Gráfico interativo mostrando qual serviço gera mais receita.
+- **Histórico**: Tabela detalhada de todos os serviços realizados.
+
+## 🛠️ Instalação
+1. Clone o repositório:
+   ```bash
+   git clone https://seu-repositorio-aqui.git
+   ```
+2. Instale as dependências:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Inicie o aplicativo:
+   ```bash
+   streamlit run app.py
+   ```
+
+## 📊 Tecnologias
+- Python
+- Streamlit
+- SQLite
+- Plotly
