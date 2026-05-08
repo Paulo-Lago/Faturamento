@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
+from sqlalchemy import text
 
 # --- CONFIGURAÇÃO ---
 URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
@@ -19,63 +20,16 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
-    /* 1. Reset e Transparência Global Responsiva */
     .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
         background-color: transparent !important;
         color: #000000 !important;
     }}
-
-    .block-container {{
-        padding-top: 2rem !important;
-        padding-bottom: 2rem !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        max-width: 100% !important;
-    }}
-
-    /* Forçar cores pretas em textos, labels e TABELAS */
-    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p, 
-    table, th, td, [data-testid=\"stTable\"] td {{
-        color: #000000 !important;
-        font-weight: 500 !important;
-    }}
-
-    button[data-testid=\"stMarker\"] p, [data-testid=\"stTab\"] p {{
-        color: #000000 !important;
-        font-weight: bold !important;
-        font-size: clamp(0.8rem, 2.5vw, 1rem) !important;
-    }}
-
-    .main-bg-container {{
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        display: flex !important; justify-content: center; align-items: center;
-        z-index: -1 !important; pointer-events: none; background-color: #ffffff;
-    }}
-
-    .bg-image {{
-        width: 80vw; max-width: 500px; opacity: 0.12 !important;
-        filter: grayscale(20%) sepia(20%) saturate(150%) hue-rotate(310deg);
-    }}
-
-    button[kind=\"primary\"], button[kind=\"secondary\"], .stButton > button {{
-        background-color: #ffc4d8 !important; color: #000000 !important;
-        border-radius: 12px !important; font-weight: bold !important;
-        border: 1px solid #ffb0cc !important; width: 100% !important; padding: 0.5rem !important;
-    }}
-
-    .stTextInput>div>div>input, .stNumberInput>div>div>input, .stSelectbox select {{
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        color: #000000 !important; border: 1px solid #ffc4d8 !important; width: 100% !important;
-    }}
-
-    [data-testid=\"stMetric\"] {{
-        background: rgba(255, 255, 255, 0.4); padding: 10px; border-radius: 10px;
-    }}
-
-    @media (max-width: 640px) {{
-        h1 {{ font-size: 1.5rem !important; }}
-        .bg-image {{ width: 90vw; }}
-    }}
+    .block-container {{ padding: 2rem 1rem !important; max-width: 100% !important; }}
+    .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, [data-testid=\"stWidgetLabel\"] p,
+    table, th, td, [data-testid=\"stTable\"] td {{ color: #000000 !important; font-weight: 500 !important; }}
+    .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; background-color: #ffffff; display: flex; justify-content: center; align-items: center; }}
+    .bg-image {{ width: 80vw; max-width: 500px; opacity: 0.12; }}
+    button[data-testid=\"baseButton-secondary\"], .stButton > button {{ background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important; width: 100% !important; }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
     """, unsafe_allow_html=True)
@@ -83,14 +37,44 @@ def aplicar_estilo_customizado():
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
 aplicar_estilo_customizado()
 
+# --- GERENCIAMENTO DE BANCO DE DADOS (HÍBRIDO) ---
+def get_connection():
+    try:
+        # Tenta conectar via Streamlit Secrets (Nuvem/Supabase)
+        return st.connection("postgresql", type="sql")
+    except:
+        # Fallback para SQLite local
+        return None
+
+def run_query(query, params=None, is_select=True):
+    conn_cloud = get_connection()
+    if conn_cloud:
+        with conn_cloud.session as s:
+            if is_select:
+                return pd.read_sql(text(query), s.bind, params=params)
+            else:
+                s.execute(text(query), params)
+                s.commit()
+                return None
+    else:
+        # Lógica SQLite
+        conn = sqlite3.connect('servicos_financeiro.db')
+        if is_select:
+            df = pd.read_sql(query.replace(":", "?"), conn, params=list(params.values()) if params else None)
+            conn.close()
+            return df
+        else:
+            c = conn.cursor()
+            c.execute(query.replace(":", "?"), list(params.values()) if params else [])
+            conn.commit()
+            conn.close()
+            return None
+
 def init_db():
-    conn = sqlite3.connect('servicos_financeiro.db')
-    c = conn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS usuarios (username TEXT UNIQUE, password TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS servicos (username TEXT, data DATE, categoria TEXT, descricao TEXT, valor REAL)')
-    c.execute('CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor REAL, data DATE)')
-    conn.commit()
-    conn.close()
+    # Cria tabelas se não existirem (Funciona em ambos)
+    run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT UNIQUE, password TEXT)", is_select=False)
+    run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data DATE, categoria TEXT, descricao TEXT, valor REAL)", is_select=False)
+    run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor REAL, data DATE)", is_select=False)
 
 init_db()
 
@@ -106,38 +90,26 @@ if not st.session_state.logged_in:
         c1, c2 = st.columns(2)
         with c1:
             if st.button("Entrar"):
-                if user and pw:
-                    conn = sqlite3.connect('servicos_financeiro.db')
-                    c = conn.cursor()
-                    c.execute("SELECT password FROM usuarios WHERE username = ?", (user,))
-                    res = c.fetchone()
-                    conn.close()
-                    if res and res[0] == pw:
-                        st.session_state.logged_in = True
-                        st.session_state.username = user
-                        st.rerun()
-                    else: st.error("Login inválido")
+                res = run_query("SELECT password FROM usuarios WHERE username = :u", {"u": user})
+                if not res.empty and res.iloc[0]['password'] == pw:
+                    st.session_state.logged_in = True
+                    st.session_state.username = user
+                    st.rerun()
+                else: st.error("Login inválido")
         with c2:
             if st.button("Criar Conta"):
-                if user and pw:
-                    try:
-                        conn = sqlite3.connect('servicos_financeiro.db')
-                        c = conn.cursor()
-                        c.execute("INSERT INTO usuarios VALUES (?, ?)", (user, pw))
-                        conn.commit()
-                        conn.close()
-                        st.success("Conta criada!")
-                    except: st.error("Usuário já existe")
+                try:
+                    run_query("INSERT INTO usuarios VALUES (:u, :p)", {"u": user, "p": pw}, is_select=False)
+                    st.success("Conta criada!")
+                except: st.error("Usuário já existe")
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
     if st.sidebar.button("Sair"): 
         st.session_state.logged_in = False
         st.rerun()
 
-    conn = sqlite3.connect('servicos_financeiro.db')
-    df_full = pd.read_sql(f"SELECT * FROM servicos WHERE username='{st.session_state.username}'", conn)
-    df_creds = pd.read_sql(f"SELECT * FROM creditos WHERE username='{st.session_state.username}'", conn)
-    conn.close()
+    df_full = run_query("SELECT * FROM servicos WHERE username=:u", {"u": st.session_state.username})
+    df_creds = run_query("SELECT * FROM creditos WHERE username=:u", {"u": st.session_state.username})
 
     hoje = datetime.now().date()
     inicio_mes = hoje.replace(day=1)
@@ -159,17 +131,13 @@ else:
         desc_serv = st.text_input("Detalhes")
         valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
         if st.button("Salvar"):
-            conn = sqlite3.connect('servicos_financeiro.db')
-            c = conn.cursor()
-            c.execute("INSERT INTO servicos VALUES (?, ?, ?, ?, ?)", (st.session_state.username, data_serv.strftime('%Y-%m-%d'), cat_serv, desc_serv, valor_serv))
-            conn.commit()
-            conn.close()
+            run_query("INSERT INTO servicos VALUES (:u, :d, :c, :de, :v)", 
+                     {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'), "c": cat_serv, "de": desc_serv, "v": valor_serv}, is_select=False)
             st.success("Registro efetuado!")
             st.rerun()
 
     with tab2:
         if not df_full.empty:
-            st.markdown("### Histórico")
             df_view = df_full[['data', 'categoria', 'descricao', 'valor']].copy()
             df_view['data'] = pd.to_datetime(df_view['data']).dt.strftime('%d/%m/%Y')
             df_view['valor_fmt'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
@@ -182,50 +150,22 @@ else:
             if not df_mes.empty:
                 df_rank = df_mes.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
                 fig_rank = px.bar(df_rank, x='categoria', y='valor', color_discrete_sequence=['#ffc4d8'])
-                fig_rank.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='black'))
                 st.plotly_chart(fig_rank, use_container_width=True)
 
-            st.markdown("### Faturamento Semanal")
-            df_full['segunda'] = df_full['data_dt'] - df_full['data_dt'].dt.weekday.map(lambda x: timedelta(days=x))
-            df_full['domingo'] = df_full['segunda'] + timedelta(days=6)
-            df_full['periodo'] = df_full['segunda'].dt.strftime('%d/%m') + "-" + df_full['domingo'].dt.strftime('%d/%m')
-            df_semana = df_full.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
-            fig_semanal = px.bar(df_semana, x='periodo', y='valor', color_discrete_sequence=['#ffc4d8'])
-            fig_semanal.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='black'), 
-                                      xaxis=dict(title='Período', title_font=dict(color='black'), tickfont=dict(color='black')),
-                                      yaxis=dict(title='Faturamento', title_font=dict(color='black'), tickfont=dict(color='black')))
-            st.plotly_chart(fig_semanal, use_container_width=True)
-
     with tab4:
-        st.markdown("### Gestão de Créditos (Troco)")
         c_nome = st.text_input("Nome do Cliente")
         c_valor = st.number_input("Valor do Crédito (R$)", min_value=0.0, step=0.5)
-        
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
+        cb1, cb2 = st.columns(2)
+        with cb1:
             if st.button("Adicionar Crédito"):
-                if c_nome and c_valor > 0:
-                    conn = sqlite3.connect('servicos_financeiro.db')
-                    c = conn.cursor()
-                    c.execute("INSERT INTO creditos VALUES (?, ?, ?, ?)", (st.session_state.username, c_nome.upper(), c_valor, hoje.strftime('%Y-%m-%d')))
-                    conn.commit(); conn.close()
-                    st.success(f"Crédito de R$ {c_valor:.2f} para {c_nome} salvo!")
-                    st.rerun()
-        
-        with col_btn2:
-            if st.button("Usar Crédito (Abater)"):
-                if c_nome and c_valor > 0:
-                    conn = sqlite3.connect('servicos_financeiro.db')
-                    c = conn.cursor()
-                    c.execute("INSERT INTO creditos VALUES (?, ?, ?, ?)", (st.session_state.username, c_nome.upper(), -c_valor, hoje.strftime('%Y-%m-%d')))
-                    conn.commit(); conn.close()
-                    st.warning(f"R$ {c_valor:.2f} debitados de {c_nome}!")
-                    st.rerun()
-
+                run_query("INSERT INTO creditos VALUES (:u, :cl, :v, :d)", 
+                         {"u": st.session_state.username, "cl": c_nome.upper(), "v": c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                st.rerun()
+        with cb2:
+            if st.button("Usar Crédito"):
+                run_query("INSERT INTO creditos VALUES (:u, :cl, :v, :d)", 
+                         {"u": st.session_state.username, "cl": c_nome.upper(), "v": -c_valor, "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                st.rerun()
         if not df_creds.empty:
-            st.markdown("--- ")
-            st.markdown("#### Saldo Atual por Cliente")
             df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
-            df_saldo = df_saldo[df_saldo['valor'] != 0]
-            df_saldo['valor'] = df_saldo['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.table(df_saldo)
+            st.table(df_saldo[df_saldo['valor'] != 0])
