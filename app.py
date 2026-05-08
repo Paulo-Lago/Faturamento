@@ -32,11 +32,18 @@ def aplicar_estilo_customizado():
         color: #000000 !important;
         font-weight: 600 !important;
     }}
-    /* Fix para o Calendário (Date Input) */
-    div[data-baseweb=\"calendar\"] *, div[data-baseweb=\"popover\"] * {{
+    
+    /* Fix específico para Calendário e Selectbox com fundo BRANCO */
+    div[data-baseweb=\"calendar\"] *, div[data-baseweb=\"popover\"] *, 
+    div[data-baseweb=\"select\"] *, .stSelectbox div[role=\"button\"] {{
         color: #000000 !important;
+        background-color: #ffffff !important;
     }}
-    input, select, textarea, [data-baseweb=\"select\"] div {{ color: #000000 !important; background-color: #f0f2f6 !important; }}
+
+    /* Garantindo que os inputs tenham fundo claro mas o seletor seja branco */
+    input, textarea {{ color: #000000 !important; background-color: #f0f2f6 !important; }}
+    div[data-baseweb=\"select\"] > div {{ background-color: #ffffff !important; }}
+
     button[data-testid=\"baseButton-secondary\"], .stButton > button {{
         background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important;
         width: 100% !important; border: 1px solid #ffb0cc !important; font-weight: bold !important;
@@ -190,4 +197,5 @@ else:
                 st.rerun()
         if not df_creds.empty:
             df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
-            st.table(df_saldo[df_saldo['valor'] != 0])
+            df_saldo['Saldo'] = df_saldo['valor'].apply(lambda x: f"R$ {x:,.2f}")
+            st.table(df_saldo[df_saldo['valor'] != 0][['cliente', 'Saldo']])
