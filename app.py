@@ -19,22 +19,40 @@ LISTA_SERVICOS = [
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
-    .stApp, .stMain, .stHeader, .stAppHeader, .block-container {{ background-color: #ffffff !important; color: black !important; }}
-    body {{ background-color: #ffffff !important; }}
+    /* Forçar fundo branco e letras pretas em toda a aplicação */
+    .stApp, .stMain, .stHeader, .stAppHeader, .block-container {{ 
+        background-color: #ffffff !important; 
+        color: #000000 !important; 
+    }}
+    
+    /* Garantir que textos, labels e spans sejam pretos */
+    h1, h2, h3, p, span, label, .stMarkdown, .stText {{ 
+        color: #000000 !important; 
+    }}
+
     .main-bg-container {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex !important; justify-content: center; align-items: center; z-index: -2 !important; pointer-events: none; overflow: hidden; }}
     .egg-icon-bg-persistent {{ width: 85vw; max-width: 650px; opacity: 0.20 !important; filter: sepia(100%) saturate(300%) hue-rotate(310deg); }}
-    h1, h2, h3, p, span, label {{ color: #000000 !important; }}
-    .sub-texto {{ text-align: center; margin-bottom: 2rem; font-size: 1.1rem; opacity: 0.7; }}
+    
+    .sub-texto {{ text-align: center; margin-bottom: 2rem; font-size: 1.1rem; color: #000000 !important; }}
+
+    /* Botões com fundo rosa e letras pretas */
     div.stButton > button {{ 
         background-color: #ffc4d8 !important; 
-        color: black !important; 
+        color: #000000 !important; 
         border-radius: 12px !important; 
         font-weight: bold !important; 
         width: 100% !important; 
         border: 1px solid #ffb0cc !important;
     }}
+    
     div.stButton > button:hover {{ opacity: 0.8; transform: scale(1.01); }}
-    .stTextInput>div>div>input {{ background-color: #ffffff !important; border: 1px solid #ffc4d8 !important; }}
+
+    /* Inputs com borda rosa e texto preto */
+    .stTextInput>div>div>input, .stNumberInput>div>div>input {{ 
+        background-color: #ffffff !important; 
+        color: #000000 !important; 
+        border: 1px solid #ffc4d8 !important; 
+    }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='egg-icon-bg-persistent'></div>
     """, unsafe_allow_html=True)
@@ -88,7 +106,7 @@ if not st.session_state.logged_in:
                 except: st.error("Este usuário já existe")
             else: st.warning("Preencha os campos acima para criar a conta")
 else:
-    st.markdown(f"<h1>Painel de Faturamento</h1>", unsafe_allow_html=True)
+    st.markdown(f"<h1 style='text-align: center;'>Painel de Faturamento</h1>", unsafe_allow_html=True)
     if st.sidebar.button("Sair"): 
         st.session_state.logged_in = False
         st.rerun()
@@ -127,6 +145,7 @@ else:
 
     with tab2:
         if not df_full.empty:
+            st.markdown("### Histórico de Serviços")
             st.dataframe(df_full[['data', 'categoria', 'descricao', 'valor']].sort_values('data', ascending=False), use_container_width=True)
 
     with tab3:
@@ -139,7 +158,13 @@ else:
                                  title=f"Faturamento por Categoria ({hoje.strftime('%B/%Y')})",
                                  labels={'categoria': 'Serviço', 'valor': 'Total (R$)'},
                                  color_discrete_sequence=['#ffc4d8'])
-                fig_rank.update_layout(plot_bgcolor='#ffffff', paper_bgcolor='#ffffff')
+                fig_rank.update_layout(
+                    plot_bgcolor='#ffffff', 
+                    paper_bgcolor='#ffffff', 
+                    font_color='#000000',
+                    xaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black')),
+                    yaxis=dict(tickfont=dict(color='black'), titlefont=dict(color='black'))
+                )
                 st.plotly_chart(fig_rank, use_container_width=True)
             else:
                 st.info("Ainda não há dados para o mês atual.")
