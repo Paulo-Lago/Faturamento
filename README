@@ -1,30 +1,18 @@
-# Gestor de Serviços & Faturamento
+%%writefile README.md
+# 📊 Gestor de Serviços Pro (Nuvem)
 
-Sistema profissional desenvolvido em Python com **Streamlit** para gerenciamento de pequenos negócios e prestadores de serviço.
+Sistema de gerenciamento financeiro com persistência de dados no **Supabase**.
 
-## 🚀 Funcionalidades
-- **Controle de Acesso**: Sistema de login e criação de conta.
-- **Registro de Serviços**: Categorias pré-definidas (Xérox, Impressão, Currículo, Edição, etc).
-- **Dashboard Financeiro**: Visualização de faturamento diário, semanal e mensal.
-- **Ranking de Serviços**: Gráfico interativo mostrando qual serviço gera mais receita.
-- **Histórico**: Tabela detalhada de todos os serviços realizados.
+## 🛠️ Configuração na Nuvem
+Para que os dados não sejam apagados, você deve configurar os **Secrets** no Streamlit Cloud:
 
-## 🛠️ Instalação
-1. Clone o repositório:
-   ```bash
-   git clone https://seu-repositorio-aqui.git
-   ```
-2. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Inicie o aplicativo:
-   ```bash
-   streamlit run app.py
-   ```
+1. Vá em **Settings > Secrets** no seu app.
+2. Adicione sua URL do Supabase:
+```toml
+[connections.postgresql]
+url = "sua_url_aqui"
+```
 
-## 📊 Tecnologias
-- Python
-- Streamlit
-- SQLite
-- Plotly
+## 🚀 Como rodar localmente
+1. Instale as dependências: `pip install -r requirements.txt` 
+2. Inicie: `streamlit run app.py`
