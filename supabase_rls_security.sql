@@ -1,67 +1,72 @@
 -- ========================================
--- SCRIPT DE SEGURANÇA - RLS PARA SUPABASE (VERSÃO SEGURA)
+-- SCRIPT DE SEGURANÇA - RLS PARA SUPABASE (VERSÃO CORRIGIDA)
 -- ========================================
 -- Este script é seguro para executar múltiplas vezes
--- Não deleta dados, apenas cria estruturas se não existirem
+-- Implementa RLS com validações apropriadas
 
--- 1. HABILITAR RLS EM TODAS AS TABELAS (idempotente)
+-- 1. HABILITAR RLS EM TODAS AS TABELAS
 ALTER TABLE IF EXISTS public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.servicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.creditos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.usuario_sessoes ENABLE ROW LEVEL SECURITY;
 
--- 2. CRIAR POLÍTICAS (apenas se não existirem)
--- IMPORTANTE: Como você usa Streamlit (sem auth nativa), 
--- as políticas usam o username como identificador
-
 -- ========================================
 -- POLÍTICAS PARA TABELA: usuarios
 -- ========================================
+-- SELECT: Permitir leitura para login (público)
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable read access for own user' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Enable read access for users' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable read access for own user"
+    CREATE POLICY "Enable read access for users"
     ON public.usuarios
     FOR SELECT
+    TO authenticated, anon
     USING (true);
   END IF;
 END $$;
 
+-- INSERT: Restringir inserção apenas para o próprio usuário
+-- IMPORTANTE: Assumindo que a coluna é 'username' e o usuário é 'current_user'
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable insert for signup' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Enable signup - insert own user' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable insert for signup"
+    CREATE POLICY "Enable signup - insert own user"
     ON public.usuarios
     FOR INSERT
-    WITH CHECK (true);
+    TO anon
+    WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- UPDATE: Só o próprio usuário pode atualizar sua linha
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable update for own user' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Enable update own user' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable update for own user"
+    CREATE POLICY "Enable update own user"
     ON public.usuarios
     FOR UPDATE
+    TO authenticated
     USING (username = current_user)
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- DELETE: Só o próprio usuário pode deletar sua conta
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable delete for own user' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Enable delete own user' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable delete for own user"
+    CREATE POLICY "Enable delete own user"
     ON public.usuarios
     FOR DELETE
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
@@ -69,6 +74,7 @@ END $$;
 -- ========================================
 -- POLÍTICAS PARA TABELA: servicos
 -- ========================================
+-- SELECT: Usuário vê apenas seus próprios serviços
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -77,10 +83,12 @@ BEGIN
     CREATE POLICY "Users can view own services"
     ON public.servicos
     FOR SELECT
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
 
+-- INSERT: Usuário insere serviço apenas para si mesmo
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -89,10 +97,12 @@ BEGIN
     CREATE POLICY "Users can insert own services"
     ON public.servicos
     FOR INSERT
+    TO authenticated
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- UPDATE: Usuário atualiza apenas seus próprios serviços
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -101,11 +111,13 @@ BEGIN
     CREATE POLICY "Users can update own services"
     ON public.servicos
     FOR UPDATE
+    TO authenticated
     USING (username = current_user)
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- DELETE: Usuário deleta apenas seus próprios serviços
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -114,6 +126,7 @@ BEGIN
     CREATE POLICY "Users can delete own services"
     ON public.servicos
     FOR DELETE
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
@@ -121,6 +134,7 @@ END $$;
 -- ========================================
 -- POLÍTICAS PARA TABELA: creditos
 -- ========================================
+-- SELECT: Usuário vê apenas seus próprios créditos
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -129,10 +143,12 @@ BEGIN
     CREATE POLICY "Users can view own credits"
     ON public.creditos
     FOR SELECT
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
 
+-- INSERT: Usuário insere crédito apenas para si mesmo
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -141,10 +157,12 @@ BEGIN
     CREATE POLICY "Users can insert own credits"
     ON public.creditos
     FOR INSERT
+    TO authenticated
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- UPDATE: Usuário atualiza apenas seus próprios créditos
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -153,11 +171,13 @@ BEGIN
     CREATE POLICY "Users can update own credits"
     ON public.creditos
     FOR UPDATE
+    TO authenticated
     USING (username = current_user)
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- DELETE: Usuário deleta apenas seus próprios créditos
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -166,6 +186,7 @@ BEGIN
     CREATE POLICY "Users can delete own credits"
     ON public.creditos
     FOR DELETE
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
@@ -173,6 +194,7 @@ END $$;
 -- ========================================
 -- POLÍTICAS PARA TABELA: usuario_sessoes
 -- ========================================
+-- SELECT: Usuário vê apenas suas próprias sessões
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -181,10 +203,12 @@ BEGIN
     CREATE POLICY "Users can view own sessions"
     ON public.usuario_sessoes
     FOR SELECT
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
 
+-- INSERT: Usuário insere sessão apenas para si mesmo
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -193,10 +217,12 @@ BEGIN
     CREATE POLICY "Users can insert own sessions"
     ON public.usuario_sessoes
     FOR INSERT
+    TO authenticated
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- UPDATE: Usuário atualiza apenas suas próprias sessões
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -205,11 +231,13 @@ BEGIN
     CREATE POLICY "Users can update own sessions"
     ON public.usuario_sessoes
     FOR UPDATE
+    TO authenticated
     USING (username = current_user)
     WITH CHECK (username = current_user);
   END IF;
 END $$;
 
+-- DELETE: Usuário deleta apenas suas próprias sessões
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -218,12 +246,13 @@ BEGIN
     CREATE POLICY "Users can delete own sessions"
     ON public.usuario_sessoes
     FOR DELETE
+    TO authenticated
     USING (username = current_user);
   END IF;
 END $$;
 
 -- ========================================
--- CRIAR ÍNDICES PARA PERFORMANCE (idempotente)
+-- CRIAR ÍNDICES PARA PERFORMANCE
 -- ========================================
 CREATE INDEX IF NOT EXISTS idx_usuarios_username ON public.usuarios(username);
 CREATE INDEX IF NOT EXISTS idx_servicos_username ON public.servicos(username);
@@ -233,7 +262,7 @@ CREATE INDEX IF NOT EXISTS idx_sessoes_token ON public.usuario_sessoes(token);
 CREATE INDEX IF NOT EXISTS idx_sessoes_expiracao ON public.usuario_sessoes(data_expiracao);
 
 -- ========================================
--- VERIFICAÇÃO (execute após criar as políticas)
+-- VERIFICAÇÃO
 -- ========================================
--- Descomente a linha abaixo para ver todas as políticas criadas:
--- SELECT schemaname, tablename, policyname, permissive, roles, qual, with_check FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename, policyname;
+-- Descomente para ver todas as políticas:
+-- SELECT schemaname, tablename, policyname FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename, policyname;
