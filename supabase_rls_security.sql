@@ -1,8 +1,8 @@
 -- ========================================
--- SCRIPT DE SEGURANÇA - RLS PARA SUPABASE (VERSÃO CORRIGIDA)
+-- SCRIPT DE SEGURANÇA - RLS PARA SUPABASE (CORRIGIDO PARA SEU SCHEMA)
 -- ========================================
+-- Corrigido especificamente para: usuarios(username, password)
 -- Este script é seguro para executar múltiplas vezes
--- Implementa RLS com validações apropriadas
 
 -- 1. HABILITAR RLS EM TODAS AS TABELAS
 ALTER TABLE IF EXISTS public.usuarios ENABLE ROW LEVEL SECURITY;
@@ -13,42 +13,44 @@ ALTER TABLE IF EXISTS public.usuario_sessoes ENABLE ROW LEVEL SECURITY;
 -- ========================================
 -- POLÍTICAS PARA TABELA: usuarios
 -- ========================================
--- SELECT: Permitir leitura para login (público)
+-- SELECT: Permitir leitura para login (público - necessário para autenticação)
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable read access for users' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read for login' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable read access for users"
+    CREATE POLICY "Allow public read for login"
     ON public.usuarios
     FOR SELECT
-    TO authenticated, anon
+    TO anon, authenticated
     USING (true);
   END IF;
 END $$;
 
--- INSERT: Restringir inserção apenas para o próprio usuário
--- IMPORTANTE: Assumindo que a coluna é 'username' e o usuário é 'current_user'
+-- INSERT: Permitir signup anônimo (público pode se registrar)
+-- ⚠️ IMPORTANTE: Sem validação adicional porque é signup público
+-- Considere adicionar constraints de unicidade no banco de dados
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable signup - insert own user' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow public signup' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable signup - insert own user"
+    CREATE POLICY "Allow public signup"
     ON public.usuarios
     FOR INSERT
     TO anon
-    WITH CHECK (username = current_user);
+    WITH CHECK (username IS NOT NULL AND password IS NOT NULL);
   END IF;
 END $$;
 
--- UPDATE: Só o próprio usuário pode atualizar sua linha
+-- UPDATE: Só o próprio usuário pode atualizar sua senha
+-- Verificação: o username sendo atualizado deve corresponder ao usuário atual
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable update own user' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow user update own password' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable update own user"
+    CREATE POLICY "Allow user update own password"
     ON public.usuarios
     FOR UPDATE
     TO authenticated
@@ -61,9 +63,9 @@ END $$;
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Enable delete own user' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow user delete own account' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Enable delete own user"
+    CREATE POLICY "Allow user delete own account"
     ON public.usuarios
     FOR DELETE
     TO authenticated
@@ -260,6 +262,16 @@ CREATE INDEX IF NOT EXISTS idx_creditos_username ON public.creditos(username);
 CREATE INDEX IF NOT EXISTS idx_sessoes_username ON public.usuario_sessoes(username);
 CREATE INDEX IF NOT EXISTS idx_sessoes_token ON public.usuario_sessoes(token);
 CREATE INDEX IF NOT EXISTS idx_sessoes_expiracao ON public.usuario_sessoes(data_expiracao);
+
+-- ========================================
+-- ADICIONAR RESTRIÇÕES DE INTEGRIDADE
+-- ========================================
+-- Garante que username não pode ser duplicado
+ALTER TABLE public.usuarios ADD CONSTRAINT usuarios_username_unique UNIQUE(username);
+
+-- Garante que username não pode ser nulo
+ALTER TABLE public.usuarios ALTER COLUMN username SET NOT NULL;
+ALTER TABLE public.usuarios ALTER COLUMN password SET NOT NULL;
 
 -- ========================================
 -- VERIFICAÇÃO
