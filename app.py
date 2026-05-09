@@ -188,7 +188,8 @@ else:
             df_view = df_full[['data', 'categoria', 'descricao', 'valor']].copy()
             df_view['data'] = pd.to_datetime(df_view['data']).dt.strftime('%d/%m/%Y')
             df_view['Valor'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_view[['data', 'categoria', 'descricao', 'Valor']].sort_values('data', ascending=False), use_container_width=True)
+            df_view = df_view.rename(columns={'data': 'Data', 'categoria': 'Categoria', 'descricao': 'Descrição'})
+            st.dataframe(df_view[['Data', 'Categoria', 'Descrição', 'Valor']].sort_values('Data', ascending=False), use_container_width=True)
 
     with tab3:
         if not df_full.empty:
