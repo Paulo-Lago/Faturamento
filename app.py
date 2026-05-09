@@ -35,7 +35,7 @@ def run_query(query, params=None, is_select=True):
                 s.commit()
                 return None
     except Exception as e:
-        st.warning("⚠️ Aviso: Usando banco local temporário. Configure os Secrets no Streamlit Cloud para não perder dados.")
+        st.warning("⚠️ Aviso: Usando banco local temporário. Configure os Secrets no Streamlit Cloud.")
         conn_local = sqlite3.connect('servicos_financeiro.db')
         sql_mod = query
         p_list = []
@@ -84,7 +84,7 @@ else:
         st.session_state.logged_in = False
         st.rerun()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["➕ Novo", "📊 Histórico", "📈 Ranking", "💳 Créditos"]
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Novo", "📊 Histórico", "📈 Ranking", "💳 Créditos"])
 
     with tab1:
         st.subheader("Registrar Serviço")
@@ -101,13 +101,7 @@ else:
         st.subheader("Histórico de Atividades")
         df = run_query("SELECT data, categoria, descricao, valor FROM servicos WHERE username = :u", {"u": st.session_state.username})
         if not df.empty:
-            # Ajustando a gramática dos nomes das colunas
-            df_view = df.rename(columns={
-                'data': 'Data',
-                'categoria': 'Categoria',
-                'descricao': 'Descrição',
-                'valor': 'Valor'
-            })
+            df_view = df.rename(columns={'data': 'Data', 'categoria': 'Categoria', 'descricao': 'Descrição', 'valor': 'Valor'})
             st.dataframe(df_view.sort_values('Data', ascending=False), use_container_width=True)
         else: st.info("Nenhum serviço registrado.")
 
