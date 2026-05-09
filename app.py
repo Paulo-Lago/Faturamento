@@ -225,4 +225,5 @@ else:
         if not df_creds.empty:
             df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
             df_saldo['Saldo'] = df_saldo['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.table(df_saldo[df_saldo['valor'] != 0][['cliente', 'Saldo']])
+            df_saldo = df_saldo.rename(columns={'cliente': 'Cliente'})
+            st.table(df_saldo[df_saldo['valor'] != 0][['Cliente', 'Saldo']])
