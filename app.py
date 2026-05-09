@@ -5,6 +5,16 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from sqlalchemy import text
 import re
+import jwt
+import json
+from typing import Optional, Dict, Any
+import hashlib
+import secrets
+
+# --- CONFIGURAÇÃO JWT ---
+JWT_SECRET = "sua_chave_secreta_super_segura_aqui_123456"  # IMPORTANTE: Alterar em produção!
+JWT_ALGORITHM = "HS256"
+TOKEN_EXPIRY_DAYS = 30
 
 # --- CONFIGURAÇÃO ---
 URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
@@ -120,11 +130,99 @@ def init_db():
     run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, password TEXT)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data TEXT, categoria TEXT, descricao TEXT, valor NUMERIC)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor NUMERIC, data TEXT)", is_select=False)
+    run_query("""CREATE TABLE IF NOT EXISTS usuario_sessoes (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        data_expiracao TIMESTAMP NOT NULL,
+        ativo BOOLEAN DEFAULT TRUE
+    )""", is_select=False)
 
 init_db()
 
+# --- FUNÇÕES DE AUTENTICAÇÃO COM JWT ---
+def gerar_token_jwt(username: str) -> str:
+    """Gera um token JWT com expiração"""
+    payload = {
+        'username': username,
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token
+
+def verificar_token_jwt(token: str) -> Optional[str]:
+    """Verifica se o token JWT é válido e retorna o username"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload.get('username')
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
+
+def salvar_sessao_supabase(username: str, token: str) -> bool:
+    """Salva a sessão no banco de dados"""
+    data_expiracao = datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)
+    try:
+        run_query("""INSERT INTO usuario_sessoes (username, token, data_expiracao) 
+                    VALUES (:u, :t, :e)""",
+                 {"u": username, "t": token, "e": data_expiracao},
+                 is_select=False)
+        return True
+    except:
+        return False
+
+def validar_sessao_supabase(username: str, token: str) -> bool:
+    """Valida se a sessão existe e está ativa no banco"""
+    try:
+        res = run_query("""SELECT ativo FROM usuario_sessoes 
+                          WHERE username = :u AND token = :t AND data_expiracao > CURRENT_TIMESTAMP""",
+                       {"u": username, "t": token})
+        return not res.empty and res.iloc[0]['ativo']
+    except:
+        return False
+
+def obter_usuario_de_cookies() -> Optional[str]:
+    """Tenta recuperar usuário de um token salvo nos cookies do navegador"""
+    # Nota: Streamlit não tem suporte nativo a cookies, mas podemos usar st.session_state como fallback
+    # Para cookies reais, seria necessário usar uma biblioteca como streamlit-cookies ou javascript customizado
+    if 'token_remember' in st.session_state and st.session_state.token_remember:
+        token = st.session_state.token_remember
+        username = verificar_token_jwt(token)
+        if username and validar_sessao_supabase(username, token):
+            return username
+        else:
+            # Token inválido ou expirado, limpar
+            st.session_state.token_remember = None
+    return None
+
+def logout_completo():
+    """Realiza logout completo, limpando sessões"""
+    if 'username' in st.session_state and 'token_remember' in st.session_state:
+        try:
+            run_query("""UPDATE usuario_sessoes SET ativo = FALSE 
+                        WHERE username = :u AND token = :t""",
+                     {"u": st.session_state.username, "t": st.session_state.token_remember},
+                     is_select=False)
+        except:
+            pass
+    
+    st.session_state.logged_in = False
+    st.session_state.username = ""
+    st.session_state.token_remember = None
+
+# --- INICIALIZAR SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'username' not in st.session_state: st.session_state.username = ""
+if 'token_remember' not in st.session_state: st.session_state.token_remember = None
+
+# --- VERIFICAR SESSÃO SALVA AO INICIAR ---
+if not st.session_state.logged_in:
+    usuario_salvo = obter_usuario_de_cookies()
+    if usuario_salvo:
+        st.session_state.logged_in = True
+        st.session_state.username = usuario_salvo
+        st.rerun()
 
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
@@ -132,15 +230,28 @@ if not st.session_state.logged_in:
     with col_center:
         user = st.text_input("Usuário", key="login_user")
         pw = st.text_input("Senha", type="password", key="login_pw")
+        remember = st.checkbox("🔐 Lembrar meu login por 30 dias", value=False)
+        
         if st.button("Entrar"):
             if user:
                 res = run_query("SELECT password FROM usuarios WHERE username = :u", {"u": user})
                 if not res.empty and str(res.iloc[0]['password']) == str(pw):
                     st.session_state.logged_in = True
                     st.session_state.username = user
+                    
+                    # Se marcou lembrar, gera e salva token
+                    if remember:
+                        token = gerar_token_jwt(user)
+                        if salvar_sessao_supabase(user, token):
+                            st.session_state.token_remember = token
+                            st.success("✅ Login salvo! Você não precisará fazer login novamente por 30 dias.")
+                        else:
+                            st.warning("⚠️ Não foi possível salvar o login. Faça login normalmente da próxima vez.")
+                    
                     st.rerun()
                 else: st.error("Login ou senha incorretos")
             else: st.warning("Digite o usuário")
+        
         if st.button("Criar Conta"):
             if user and pw:
                 check = run_query("SELECT username FROM usuarios WHERE username = :u", {"u": user})
@@ -149,11 +260,15 @@ if not st.session_state.logged_in:
                     st.success("Conta criada com sucesso!")
                 else: st.error("Usuário já existe.")
             else: st.warning("Preencha tudo")
+
 else:
     st.markdown(f"<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
-    if st.sidebar.button("Sair"): 
-        st.session_state.logged_in = False
-        st.rerun()
+    
+    col1, col2 = st.columns([9, 1])
+    with col2:
+        if st.button("🚪 Sair"): 
+            logout_completo()
+            st.rerun()
 
     df_full = run_query("SELECT * FROM servicos WHERE username=:u", {"u": st.session_state.username})
     df_creds = run_query("SELECT * FROM creditos WHERE username=:u", {"u": st.session_state.username})
