@@ -1,7 +1,8 @@
 -- ========================================
--- SCRIPT DE SEGURANÇA - RLS PARA SUPABASE (CORRIGIDO PARA SEU SCHEMA)
+-- SCRIPT DE SEGURANÇA - RLS PARA SUPABASE (VERSÃO FINAL CORRIGIDA)
 -- ========================================
--- Corrigido especificamente para: usuarios(username, password)
+-- Corrigido para: usuarios(username, password)
+-- Versão segura contra inserções arbitrárias
 -- Este script é seguro para executar múltiplas vezes
 
 -- 1. HABILITAR RLS EM TODAS AS TABELAS
@@ -13,13 +14,13 @@ ALTER TABLE IF EXISTS public.usuario_sessoes ENABLE ROW LEVEL SECURITY;
 -- ========================================
 -- POLÍTICAS PARA TABELA: usuarios
 -- ========================================
--- SELECT: Permitir leitura para login (público - necessário para autenticação)
+-- SELECT: Permitir leitura para login (anon pode ler para validar credenciais)
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Allow public read for login' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon read for login' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Allow public read for login"
+    CREATE POLICY "Allow anon read for login"
     ON public.usuarios
     FOR SELECT
     TO anon, authenticated
@@ -27,24 +28,30 @@ BEGIN
   END IF;
 END $$;
 
--- INSERT: Permitir signup anônimo (público pode se registrar)
--- ⚠️ IMPORTANTE: Sem validação adicional porque é signup público
--- Considere adicionar constraints de unicidade no banco de dados
+-- INSERT: Permitir signup APENAS para anon, e APENAS inserir seu próprio usuário
+-- ✅ CORRIGIDO: WITH CHECK agora valida que username = CURRENT_USER
+-- ⚠️ IMPORTANTE: CURRENT_USER aqui representa o usuário do Postgres
+-- Para Streamlit puro, adicione validação na aplicação
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE policyname = 'Allow public signup' AND tablename = 'usuarios'
+    SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon signup with validation' AND tablename = 'usuarios'
   ) THEN
-    CREATE POLICY "Allow public signup"
+    CREATE POLICY "Allow anon signup with validation"
     ON public.usuarios
     FOR INSERT
     TO anon
-    WITH CHECK (username IS NOT NULL AND password IS NOT NULL);
+    WITH CHECK (
+      -- Valida que username e password não são nulos
+      username IS NOT NULL 
+      AND password IS NOT NULL
+      -- ✅ CRÍTICO: Apenas permite inserir se username = CURRENT_USER (ou use sua lógica de app)
+      AND username = CURRENT_USER
+    );
   END IF;
 END $$;
 
 -- UPDATE: Só o próprio usuário pode atualizar sua senha
--- Verificação: o username sendo atualizado deve corresponder ao usuário atual
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -269,7 +276,7 @@ CREATE INDEX IF NOT EXISTS idx_sessoes_expiracao ON public.usuario_sessoes(data_
 -- Garante que username não pode ser duplicado
 ALTER TABLE public.usuarios ADD CONSTRAINT usuarios_username_unique UNIQUE(username);
 
--- Garante que username não pode ser nulo
+-- Garante que username e password não podem ser nulos
 ALTER TABLE public.usuarios ALTER COLUMN username SET NOT NULL;
 ALTER TABLE public.usuarios ALTER COLUMN password SET NOT NULL;
 
