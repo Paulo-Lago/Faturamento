@@ -1,17 +1,7 @@
 %%writefile .gitignore
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-
-# Banco de Dados Local e Backups
 *.db
-backup/
-backup.*
-
-# Ambientes Virtuais
+.streamlit/secrets.toml
+.env
 venv/
-env/
-
-# Streamlit
-.streamlit/
+.DS_Store
