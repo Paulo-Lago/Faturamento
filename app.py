@@ -13,7 +13,7 @@ import secrets
 
 # --- CONFIGURAÇÃO JWT ---
 JWT_SECRET = "sua_chave_secreta_super_segura_aqui_123456"  # IMPORTANTE: Alterar em produção!
-JWT_ALGORITHM = "HS256"
+JWT_ALGORITHM = "HS256"        
 TOKEN_EXPIRY_DAYS = 30
 
 # --- CONFIGURAÇÃO ---
@@ -65,17 +65,15 @@ def aplicar_estilo_customizado():
 
     /* IMAGEM DE FUNDO - Restauração */
     .main-bg-container {{
-        position: fixed !important;
+        position: absolute !important;
         top: 0 !important;
         left: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
-        z-index: 0 !important;
         background-color: #ffffff;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        pointer-events: none !important;
     }}
     
     .bg-image {{
