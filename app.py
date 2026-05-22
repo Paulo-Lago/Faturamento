@@ -197,6 +197,24 @@ def validar_sessao_supabase(username: str, token: str) -> bool:
     except:
         return False
 
+def obter_usuario_de_token() -> str | None:
+    # Primeiro tenta da URL
+    token_url = st.query_params.get("token")
+    if token_url:
+        username = verificar_token_jwt(token_url)
+        if username and validar_sessao_supabase(username, token_url):
+            st.session_state.token_remember = token_url
+            return username
+         # Depois tenta do session_state (fallback)
+    token = st.session_state.get('token_remember')
+    if token:
+        username = verificar_token_jwt(token)
+        if username and validar_sessao_supabase(username, token):
+            return username
+        else:
+            st.session_state.token_remember = None
+    return None
+
 def obter_usuario_de_cookies() -> Optional[str]:
     """Tenta recuperar usuário de um token salvo nos cookies do navegador"""
     # Nota: Streamlit não tem suporte nativo a cookies, mas podemos usar st.session_state como fallback
@@ -225,6 +243,8 @@ def logout_completo():
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.token_remember = None
+
+    st.query_params.clear()
 
 # --- INICIALIZAR SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -258,6 +278,7 @@ if not st.session_state.logged_in:
                     if remember:
                         token = gerar_token_jwt(user)
                         if salvar_sessao_supabase(user, token):
+                            st.query_params["token"] = token
                             st.session_state.token_remember = token
                             st.success("✅ Login salvo! Você não precisará fazer login novamente por 30 dias.")
                         else:
