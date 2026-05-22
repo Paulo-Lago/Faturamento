@@ -10,6 +10,7 @@ import json
 from typing import Optional, Dict, Any
 import hashlib
 import secrets
+import streamlit.components.v1 as components
 
 # --- CONFIGURAÇÃO JWT ---
 JWT_SECRET = "sua_chave_secreta_super_segura_aqui_123456"  # IMPORTANTE: Alterar em produção!
@@ -91,6 +92,20 @@ def aplicar_estilo_customizado():
     """, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
+def salvar_token_localstorage(token: str):
+    """Salva o token no localStorage do navegador via JavaScript"""
+    components.html(f"""
+        <script>
+            localStorage.setItem('token', '{token}');
+        </script>
+    """, height=0)
+
+def obter_token_localstorage() -> str | None:
+    """Tenta ler o token do localStorage"""
+    # Infelizmente não dá para ler diretamente do Python.
+    # Vamos usar um componente que retorna o valor.
+    # Alternativa: usar st.query_params para passar o token.
+    pass
 aplicar_estilo_customizado()
 
 # --- GERENCIAMENTO DE BANCO DE DADOS ---
