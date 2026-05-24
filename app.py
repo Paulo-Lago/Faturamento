@@ -317,13 +317,62 @@ with tab1:
         st.rerun()
 
 with tab2:
-    if not df_full.empty:
-        df_view = df_full[['data', 'categoria', 'descricao', 'valor']].copy()
-        df_view['data'] = pd.to_datetime(df_view['data']).dt.strftime('%d/%m/%Y')
-        df_view['Valor'] = df_view['valor'].apply(lambda x: f"R$ {x:,.2f}")
-        df_view = df_view.rename(columns={'data': 'Data', 'categoria': 'Categoria', 'descricao': 'Descrição'})
-        st.dataframe(df_view[['Data', 'Categoria', 'Descrição', 'Valor']].sort_values('Data', ascending=False),
-                     use_container_width=True)
+    st.markdown("### Histórico de Serviços")
+    
+    # Filtro de período
+    col_filtro1, col_filtro2 = st.columns(2)
+    with col_filtro1:
+        data_inicio = st.date_input("Data Inicial", value=inicio_mes)
+    with col_filtro2:
+        data_fim = st.date_input("Data Final", value=hoje)
+    
+    if data_inicio > data_fim:
+        st.warning("Data inicial não pode ser maior que a data final.")
+    else:
+        df_full['data_dt'] = pd.to_datetime(df_full['data'])
+        df_filtrado = df_full[
+            (df_full['data_dt'].dt.date >= data_inicio) &
+            (df_full['data_dt'].dt.date <= data_fim)
+        ].sort_values('data_dt', ascending=False)
+        
+        if df_filtrado.empty:
+            st.info("Nenhum serviço encontrado no período selecionado.")
+        else:
+            for idx, row in df_filtrado.iterrows():
+                id_servico = row.get('id')
+                if id_servico is None:
+                    st.warning("Registro sem ID identificado. Contate o administrador.")
+                    continue
+                    
+                data_br = pd.to_datetime(row['data']).strftime('%d/%m/%Y')
+                categoria = row['categoria']
+                descricao = row['descricao']
+                valor = row['valor']
+                
+                with st.expander(f"📅 {data_br} | {categoria} | R$ {valor:,.2f}"):
+                    nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), key=f"data_{id_servico}")
+                    nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=LISTA_SERVICOS.index(categoria), key=f"cat_{id_servico}")
+                    nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
+                    novo_valor = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=float(valor), format="%.2f", key=f"valor_{id_servico}")
+                    
+                    col_edit, col_del = st.columns(2)
+                    with col_edit:
+                        if st.button("💾 Salvar Alterações", key=f"salvar_{id_servico}"):
+                            run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v 
+                                         WHERE id=:id AND username=:u""",
+                                      {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
+                                       "v": novo_valor, "id": id_servico, "u": st.session_state.username},
+                                      is_select=False)
+                            st.success("Registro atualizado!")
+                            st.rerun()
+                    with col_del:
+                        if st.button("🗑️ Excluir", key=f"excluir_{id_servico}"):
+                            confirmar = st.checkbox("Tem certeza? Marque para excluir permanentemente.", key=f"conf_{id_servico}")
+                            if confirmar:
+                                run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
+                                          {"id": id_servico, "u": st.session_state.username}, is_select=False)
+                                st.success("Registro excluído!")
+                                st.rerun()
 
 with tab3:
     if not df_full.empty:
