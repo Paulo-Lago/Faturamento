@@ -8,7 +8,11 @@ import jwt  # pyright: ignore[reportMissingImports]
 from typing import Optional
 
 # --- CONFIGURAÇÃO JWT ---
-JWT_SECRET = st.secrets["JWT_SECRET"]
+try:
+    JWT_SECRET = st.secrets["JWT_SECRET"]
+except KeyError:
+    st.error("❌ Chave JWT_SECRET não encontrada nas secrets. Verifique a configuração.")
+    st.stop()
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRY_DAYS = 30
 
