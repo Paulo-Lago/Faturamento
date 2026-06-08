@@ -109,7 +109,6 @@ def run_query(query, params=None, is_select=True):
 
 def init_db():
     """Cria as tabelas necessárias no Supabase e adiciona a coluna 'id' se necessário."""
-    # Tabelas principais
     run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, password TEXT)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data TEXT, categoria TEXT, descricao TEXT, valor NUMERIC)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor NUMERIC, data TEXT)", is_select=False)
@@ -122,11 +121,10 @@ def init_db():
         ativo BOOLEAN DEFAULT TRUE
     )""", is_select=False)
 
-    # --- Adicionar coluna 'id' na tabela 'servicos' se não existir ---
+    # Adicionar coluna 'id' na tabela 'servicos' se não existir
     try:
         run_query("SELECT id FROM servicos LIMIT 0", is_select=True)
     except Exception:
-        # Coluna 'id' não existe → adicionar (PostgreSQL)
         run_query("ALTER TABLE servicos ADD COLUMN id SERIAL PRIMARY KEY", is_select=False)
         st.info("✅ Coluna 'id' adicionada à tabela 'servicos'.")
 
@@ -222,7 +220,7 @@ if not st.session_state.logged_in:
     if restaurar_sessao():
         st.rerun()
 
-# --- TELA DE LOGIN (se não estiver logado) ---
+# --- TELA DE LOGIN ---
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
     _, col_center, _ = st.columns([1, 2, 1])
@@ -269,7 +267,7 @@ if not st.session_state.logged_in:
                 st.warning("Preencha usuário e senha.")
     st.stop()
 
-# --- ÁREA DO PAINEL (usuário logado) ---
+# --- ÁREA DO PAINEL ---
 st.markdown("<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([9, 1])
@@ -311,9 +309,9 @@ with tab2:
     
     col_filtro1, col_filtro2 = st.columns(2)
     with col_filtro1:
-        data_inicio = st.date_input("Data Inicial", value=inicio_mes)
+        data_inicio = st.date_input("Data Inicial", value=inicio_mes, format="DD/MM/YYYY")
     with col_filtro2:
-        data_fim = st.date_input("Data Final", value=hoje)
+        data_fim = st.date_input("Data Final", value=hoje, format="DD/MM/YYYY")
     
     if data_inicio > data_fim:
         st.warning("Data inicial não pode ser maior que a data final.")
@@ -339,9 +337,9 @@ with tab2:
                 valor = row['valor']
                 
                 with st.expander(f"📅 {data_br} | {categoria} | R$ {valor:,.2f}"):
-                    nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), key=f"data_{id_servico}")
+                    nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), format="DD/MM/YYYY", key=f"data_{id_servico}")
                     
-                    # --- Tratamento para categoria antiga não encontrada ---
+                    # Tratamento para categoria antiga
                     try:
                         indice_categoria = LISTA_SERVICOS.index(categoria)
                     except ValueError:
@@ -357,9 +355,9 @@ with tab2:
                         if st.button("💾 Salvar Alterações", key=f"salvar_{id_servico}"):
                             run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v 
                                         WHERE id=:id AND username=:u""",
-                                    {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
-                                    "v": novo_valor, "id": id_servico, "u": st.session_state.username},
-                                    is_select=False)
+                                      {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
+                                       "v": novo_valor, "id": id_servico, "u": st.session_state.username},
+                                      is_select=False)
                             st.success("Registro atualizado!")
                             st.rerun()
                     with col_del:
@@ -367,7 +365,7 @@ with tab2:
                             confirmar = st.checkbox("Tem certeza? Marque para excluir permanentemente.", key=f"conf_{id_servico}")
                             if confirmar:
                                 run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
-                                        {"id": id_servico, "u": st.session_state.username}, is_select=False)
+                                          {"id": id_servico, "u": st.session_state.username}, is_select=False)
                                 st.success("Registro excluído!")
                                 st.rerun()
 
