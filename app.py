@@ -87,6 +87,7 @@ def aplicar_estilo_customizado():
     """, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
+st.write("Chaves disponíveis:", list(st.secrets.keys()))
 aplicar_estilo_customizado()
 
 # --- CONEXÃO EXCLUSIVA COM SUPABASE ---
