@@ -432,23 +432,100 @@ with tab3:
                 st.plotly_chart(fig_semanal, use_container_width=True)
 
 with tab4:
-    c_nome = st.text_input("Nome do Cliente")
-    c_valor = st.number_input("Valor (R$)", min_value=0.0, step=0.5)
-    cb1, cb2 = st.columns(2)
-    with cb1:
-        if st.button("Adicionar Crédito"):
-            run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
-                      {"u": st.session_state.username, "cl": c_nome.upper(), "v": c_valor,
-                       "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
-            st.rerun()
-    with cb2:
-        if st.button("Usar Crédito"):
-            run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
-                      {"u": st.session_state.username, "cl": c_nome.upper(), "v": -c_valor,
-                       "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
-            st.rerun()
-    if not df_creds.empty:
+    st.markdown("### 💳 Gestão de Créditos")
+    st.caption("Controle de créditos de clientes – adicione ou utilize saldos.")
+    
+    # Inicializar estados de controle
+    if "credito_atualizado" not in st.session_state:
+        st.session_state.credito_atualizado = False
+    
+    # Recarregar dados se necessário
+    if st.session_state.credito_atualizado:
+        df_creds = run_query("SELECT * FROM creditos WHERE username=:u", {"u": st.session_state.username})
+        st.session_state.credito_atualizado = False
+    
+    # --- Formulário de movimentação (estilo card) ---
+    with st.container(border=True):
+        st.markdown("#### ➕ Movimentar Crédito")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: João Silva")
+        with col2:
+            valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=0.5, format="%.2f", key="valor_cred")
+        
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("➕ Adicionar Crédito", use_container_width=True, type="primary"):
+                if cliente_nome and valor_mov > 0:
+                    run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
+                              {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": valor_mov,
+                               "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                    st.session_state.credito_atualizado = True
+                    st.success(f"✅ R$ {valor_mov:.2f} adicionado para {cliente_nome.upper()}!")
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.warning("Preencha o nome do cliente e um valor positivo.")
+        
+        with col_btn2:
+            if st.button("🔻 Usar Crédito", use_container_width=True):
+                if cliente_nome and valor_mov > 0:
+                    # Verificar se cliente tem saldo suficiente
+                    saldo_atual = df_creds[df_creds['cliente'] == cliente_nome.upper()]['valor'].sum() if not df_creds.empty else 0
+                    if saldo_atual >= valor_mov:
+                        run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
+                                  {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": -valor_mov,
+                                   "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                        st.session_state.credito_atualizado = True
+                        st.success(f"✅ R$ {valor_mov:.2f} debitado de {cliente_nome.upper()}!")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ Saldo insuficiente para {cliente_nome.upper()}. Saldo atual: R$ {saldo_atual:.2f}")
+                else:
+                    st.warning("Preencha o nome do cliente e um valor positivo.")
+    
+    st.divider()
+    
+    # --- Exibição de saldos (cards) ---
+    if df_creds.empty:
+        st.info("📭 Nenhuma movimentação de crédito registrada.")
+    else:
+        # Calcular saldo por cliente
         df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
-        df_saldo['Saldo'] = df_saldo['valor'].apply(lambda x: f"R$ {x:,.2f}")
-        df_saldo = df_saldo.rename(columns={'cliente': 'Cliente'})
-        st.table(df_saldo[df_saldo['valor'] != 0][['Cliente', 'Saldo']])
+        df_saldo = df_saldo[df_saldo['valor'] != 0].sort_values('valor', ascending=False)
+        
+        st.markdown("#### 👥 Saldo por Cliente")
+        # Usar 3 colunas para os cards
+        cols = st.columns(3)
+        for idx, (_, row) in enumerate(df_saldo.iterrows()):
+            with cols[idx % 3]:
+                saldo = row['valor']
+                cor = "#28a745" if saldo > 0 else "#dc3545"
+                st.markdown(f"""
+                <div style="background-color:#f8f9fa; border-radius:12px; padding:0.8rem; margin-bottom:0.8rem; text-align:center;">
+                    <h4 style="margin:0;">{row['cliente']}</h4>
+                    <p style="font-size:1.8rem; font-weight:bold; color:{cor}; margin:0;">R$ {saldo:,.2f}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # --- Tabela de movimentações recentes ---
+        st.markdown("#### 📋 Histórico de Movimentações")
+        df_hist = df_creds.copy()
+        df_hist['data_fmt'] = pd.to_datetime(df_hist['data']).dt.strftime('%d/%m/%Y')
+        df_hist['tipo'] = df_hist['valor'].apply(lambda x: "➕ Crédito" if x > 0 else "🔻 Débito")
+        df_hist['valor_abs'] = df_hist['valor'].abs()
+        df_hist = df_hist.sort_values('data', ascending=False)
+        
+        # Exibir apenas as 20 últimas
+        df_display = df_hist[['data_fmt', 'cliente', 'tipo', 'valor_abs']].head(20)
+        df_display = df_display.rename(columns={
+            'data_fmt': 'Data',
+            'cliente': 'Cliente',
+            'tipo': 'Tipo',
+            'valor_abs': 'Valor'
+        })
+        df_display['Valor'] = df_display['Valor'].apply(lambda x: f"R$ {x:,.2f}")
+        
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
