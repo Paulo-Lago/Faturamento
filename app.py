@@ -1,18 +1,14 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta
 from sqlalchemy import text
 import re
 import jwt
-import json
 from typing import Optional
-import hashlib
-import secrets
 
 # --- CONFIGURAÇÃO JWT ---
-JWT_SECRET = "sua_chave_secreta_super_segura_aqui_123456"  # ALTERE EM PRODUÇÃO!
+JWT_SECRET = st.secrets["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRY_DAYS = 30
 
@@ -20,11 +16,15 @@ TOKEN_EXPIRY_DAYS = 30
 URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
 LISTA_SERVICOS = [
     "📄 Xérox",
-    "🖨️ Impressão",
+    "🖨️ Impressão em papel A4",
+    "🖨️ Impressão em Papel Fotográfico",
+    "🖨️ Impressão em Papel Adesivo",
+    "🖨️ Impressão em Papel de Diploma",
+    "📸 Foto 3x4",
     "📝 Currículo",
+    "🍞 Pão",
     "🎬 Serviços de Edição",
     "🛡️ Plastificação",
-    "📸 Impressão de Fotos",
     "⚙️ Outros"
 ]
 
@@ -85,43 +85,31 @@ def aplicar_estilo_customizado():
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
 aplicar_estilo_customizado()
 
-# --- GERENCIAMENTO DE BANCO DE DADOS ---
+# --- CONEXÃO EXCLUSIVA COM SUPABASE ---
+@st.cache_resource
 def get_connection():
+    """Retorna a conexão com o Supabase via st.connection."""
     try:
         return st.connection("postgresql", type="sql")
-    except:
-        return None
+    except Exception as e:
+        st.error(f"❌ Erro ao conectar ao Supabase: {e}")
+        st.error("Verifique se as secrets do Streamlit estão configuradas corretamente.")
+        st.stop()
 
 def run_query(query, params=None, is_select=True):
-    conn_cloud = get_connection()
-    if conn_cloud:
-        with conn_cloud.session as s:
-            if is_select:
-                return pd.read_sql(text(query), s.bind, params=params)
-            else:
-                s.execute(text(query), params)
-                s.commit()
-                return None
-    else:
-        conn = sqlite3.connect('servicos_financeiro.db')
-        sql_mod = query
-        p_list = []
-        if params:
-            for k, v in params.items():
-                sql_mod = re.sub(f":{k}\\b", "?", sql_mod)
-                p_list.append(v)
+    """Executa queries no Supabase (apenas PostgreSQL)."""
+    conn = get_connection()
+    with conn.session as s:
         if is_select:
-            df = pd.read_sql(sql_mod, conn, params=p_list)
-            conn.close()
-            return df
+            return pd.read_sql(text(query), s.bind, params=params)
         else:
-            c = conn.cursor()
-            c.execute(sql_mod, p_list)
-            conn.commit()
-            conn.close()
+            s.execute(text(query), params)
+            s.commit()
             return None
 
 def init_db():
+    """Cria as tabelas necessárias no Supabase e adiciona a coluna 'id' se necessário."""
+    # Tabelas principais
     run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, password TEXT)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data TEXT, categoria TEXT, descricao TEXT, valor NUMERIC)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor NUMERIC, data TEXT)", is_select=False)
@@ -133,6 +121,14 @@ def init_db():
         data_expiracao TIMESTAMP NOT NULL,
         ativo BOOLEAN DEFAULT TRUE
     )""", is_select=False)
+
+    # --- Adicionar coluna 'id' na tabela 'servicos' se não existir ---
+    try:
+        run_query("SELECT id FROM servicos LIMIT 0", is_select=True)
+    except Exception:
+        # Coluna 'id' não existe → adicionar (PostgreSQL)
+        run_query("ALTER TABLE servicos ADD COLUMN id SERIAL PRIMARY KEY", is_select=False)
+        st.info("✅ Coluna 'id' adicionada à tabela 'servicos'.")
 
 init_db()
 
@@ -160,7 +156,7 @@ def salvar_sessao_supabase(username: str, token: str) -> bool:
                   {"u": username, "t": token, "e": data_expiracao},
                   is_select=False)
         return True
-    except:
+    except Exception:
         return False
 
 def validar_sessao_supabase(username: str, token: str) -> bool:
@@ -169,19 +165,16 @@ def validar_sessao_supabase(username: str, token: str) -> bool:
                           WHERE username = :u AND token = :t AND data_expiracao > CURRENT_TIMESTAMP""",
                         {"u": username, "t": token})
         return not res.empty and bool(res.iloc[0]['ativo'])
-    except:
+    except Exception:
         return False
 
 def obter_usuario_por_token(token: str) -> Optional[str]:
-    """Verifica token e retorna username se válido e sessão ativa"""
     username = verificar_token_jwt(token)
     if username and validar_sessao_supabase(username, token):
         return username
     return None
 
 def restaurar_sessao():
-    """Tenta restaurar login a partir do token na URL ou session_state"""
-    # 1. Tentar token na URL (prioridade)
     token_url = st.query_params.get("token")
     if token_url:
         username = obter_usuario_por_token(token_url)
@@ -190,7 +183,6 @@ def restaurar_sessao():
             st.session_state.username = username
             st.session_state.token_remember = token_url
             return True
-    # 2. Fallback: token salvo no session_state
     token_state = st.session_state.get('token_remember')
     if token_state:
         username = obter_usuario_por_token(token_state)
@@ -203,19 +195,18 @@ def restaurar_sessao():
     return False
 
 def logout_completo():
-    """Logout: invalida sessão no banco e limpa estado"""
     if 'username' in st.session_state and 'token_remember' in st.session_state:
         try:
             run_query("""UPDATE usuario_sessoes SET ativo = FALSE 
                         WHERE username = :u AND token = :t""",
                       {"u": st.session_state.username, "t": st.session_state.token_remember},
                       is_select=False)
-        except:
+        except Exception:
             pass
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.token_remember = None
-    st.query_params.clear()   # remove token da URL
+    st.query_params.clear()
     st.rerun()
 
 # --- INICIALIZAR SESSION STATE ---
@@ -256,7 +247,6 @@ if not st.session_state.logged_in:
                         else:
                             st.warning("⚠️ Não foi possível salvar o login automático.")
                     else:
-                        # Se não marcou lembrar, garante que não haja token pendente
                         st.query_params.clear()
                         st.session_state.token_remember = None
 
@@ -277,7 +267,7 @@ if not st.session_state.logged_in:
                     st.error("Usuário já existe.")
             else:
                 st.warning("Preencha usuário e senha.")
-    st.stop()  # Interrompe a execução para não mostrar o conteúdo do painel
+    st.stop()
 
 # --- ÁREA DO PAINEL (usuário logado) ---
 st.markdown("<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
@@ -319,7 +309,6 @@ with tab1:
 with tab2:
     st.markdown("### Histórico de Serviços")
     
-    # Filtro de período
     col_filtro1, col_filtro2 = st.columns(2)
     with col_filtro1:
         data_inicio = st.date_input("Data Inicial", value=inicio_mes)
