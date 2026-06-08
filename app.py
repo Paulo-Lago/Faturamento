@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 import re
 import jwt  # pyright: ignore[reportMissingImports]
@@ -136,8 +136,8 @@ init_db()
 def gerar_token_jwt(username: str) -> str:
     payload = {
         'username': username,
-        'iat': datetime.utcnow(),
-        'exp': datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)
+        'iat': datetime.now(timezone.utc),
+        'exp': datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -149,7 +149,7 @@ def verificar_token_jwt(token: str) -> Optional[str]:
         return None
 
 def salvar_sessao_supabase(username: str, token: str) -> bool:
-    data_expiracao = datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)
+    data_expiracao = datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRY_DAYS)
     try:
         run_query("""INSERT INTO usuario_sessoes (username, token, data_expiracao) 
                     VALUES (:u, :t, :e)""",
@@ -340,7 +340,15 @@ with tab2:
                 
                 with st.expander(f"📅 {data_br} | {categoria} | R$ {valor:,.2f}"):
                     nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), key=f"data_{id_servico}")
-                    nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=LISTA_SERVICOS.index(categoria), key=f"cat_{id_servico}")
+                    
+                    # --- Tratamento para categoria antiga não encontrada ---
+                    try:
+                        indice_categoria = LISTA_SERVICOS.index(categoria)
+                    except ValueError:
+                        indice_categoria = 0
+                        st.warning(f"⚠️ A categoria original '{categoria}' não está mais na lista. Selecione a categoria correta abaixo.")
+                    
+                    nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=indice_categoria, key=f"cat_{id_servico}")
                     nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
                     novo_valor = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=float(valor), format="%.2f", key=f"valor_{id_servico}")
                     
@@ -348,10 +356,10 @@ with tab2:
                     with col_edit:
                         if st.button("💾 Salvar Alterações", key=f"salvar_{id_servico}"):
                             run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v 
-                                         WHERE id=:id AND username=:u""",
-                                      {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
-                                       "v": novo_valor, "id": id_servico, "u": st.session_state.username},
-                                      is_select=False)
+                                        WHERE id=:id AND username=:u""",
+                                    {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
+                                    "v": novo_valor, "id": id_servico, "u": st.session_state.username},
+                                    is_select=False)
                             st.success("Registro atualizado!")
                             st.rerun()
                     with col_del:
@@ -359,7 +367,7 @@ with tab2:
                             confirmar = st.checkbox("Tem certeza? Marque para excluir permanentemente.", key=f"conf_{id_servico}")
                             if confirmar:
                                 run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
-                                          {"id": id_servico, "u": st.session_state.username}, is_select=False)
+                                        {"id": id_servico, "u": st.session_state.username}, is_select=False)
                                 st.success("Registro excluído!")
                                 st.rerun()
 
