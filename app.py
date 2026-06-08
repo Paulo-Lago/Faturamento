@@ -370,21 +370,66 @@ with tab2:
                                 st.rerun()
 
 with tab3:
-    if not df_full.empty:
-        st.markdown("### Faturamento por Categoria")
-        df_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]
-        if not df_mes.empty:
-            df_rank = df_mes.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
-            fig_rank = px.bar(df_rank, x='categoria', y='valor', color_discrete_sequence=['#ffc4d8'])
+    st.markdown("### 📊 Análise de Faturamento")
+    
+    # --- Filtro de período para os gráficos ---
+    col_filtro1, col_filtro2 = st.columns(2)
+    with col_filtro1:
+        data_inicio_graf = st.date_input("Período - Data Inicial", value=inicio_mes, format="DD/MM/YYYY", key="graf_inicio")
+    with col_filtro2:
+        data_fim_graf = st.date_input("Período - Data Final", value=hoje, format="DD/MM/YYYY", key="graf_fim")
+    
+    if data_inicio_graf > data_fim_graf:
+        st.warning("Data inicial não pode ser maior que a data final.")
+    else:
+        # Filtrar o DataFrame principal pelo período escolhido
+        df_periodo = df_full[
+            (df_full['data_dt'].dt.date >= data_inicio_graf) &
+            (df_full['data_dt'].dt.date <= data_fim_graf)
+        ].copy()
+        
+        if df_periodo.empty:
+            st.info("Nenhum serviço encontrado no período selecionado.")
+        else:
+            # Total do período
+            total_periodo = df_periodo['valor'].sum()
+            st.metric("💰 Faturamento Total no Período", f"R$ {total_periodo:,.2f}")
+            st.divider()
+            
+            # --- Gráfico 1: Faturamento por Categoria ---
+            st.markdown("### Faturamento por Categoria")
+            df_rank = df_periodo.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
+            fig_rank = px.bar(df_rank, x='categoria', y='valor', 
+                             title=f"Faturamento por Tipo de Serviço ({data_inicio_graf.strftime('%d/%m/%Y')} a {data_fim_graf.strftime('%d/%m/%Y')})",
+                             labels={'categoria': 'Tipo de Serviço', 'valor': 'Valor (R$)'},
+                             color_discrete_sequence=['#ffc4d8'])
+            fig_rank.update_layout(showlegend=False)
             st.plotly_chart(fig_rank, use_container_width=True)
-
-        st.markdown("### Faturamento Semanal")
-        df_full['segunda'] = df_full['data_dt'] - df_full['data_dt'].dt.weekday.map(lambda x: timedelta(days=x))
-        df_full['domingo'] = df_full['segunda'] + timedelta(days=6)
-        df_full['periodo'] = df_full['segunda'].dt.strftime('%d/%m') + " a " + df_full['domingo'].dt.strftime('%d/%m')
-        df_semana = df_full.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
-        fig_semanal = px.bar(df_semana, x='periodo', y='valor', color_discrete_sequence=['#ffc4d8'])
-        st.plotly_chart(fig_semanal, use_container_width=True)
+            
+            st.divider()
+            
+            # --- Gráfico 2: Faturamento Semanal (baseado no período filtrado) ---
+            st.markdown("### Faturamento Semanal")
+            
+            # Garantir que os dados estão ordenados por data
+            df_periodo_semana = df_periodo.sort_values('data_dt')
+            
+            # Calcular a semana (segunda a domingo) para cada registro
+            df_periodo_semana['segunda'] = df_periodo_semana['data_dt'] - df_periodo_semana['data_dt'].dt.weekday.map(lambda x: timedelta(days=x))
+            df_periodo_semana['domingo'] = df_periodo_semana['segunda'] + timedelta(days=6)
+            df_periodo_semana['periodo'] = df_periodo_semana['segunda'].dt.strftime('%d/%m') + " a " + df_periodo_semana['domingo'].dt.strftime('%d/%m')
+            
+            df_semana = df_periodo_semana.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
+            
+            if df_semana.empty:
+                st.info("Não há dados suficientes para gráfico semanal no período selecionado.")
+            else:
+                fig_semanal = px.bar(df_semana, x='periodo', y='valor', 
+                                    title=f"Faturamento por Semana ({data_inicio_graf.strftime('%d/%m/%Y')} a {data_fim_graf.strftime('%d/%m/%Y')})",
+                                    labels={'periodo': 'Semana', 'valor': 'Valor (R$)'},
+                                    color_discrete_sequence=['#ffc4d8'])
+                fig_semanal.update_layout(showlegend=False)
+                st.plotly_chart(fig_semanal, use_container_width=True)
 
 with tab4:
     c_nome = st.text_input("Nome do Cliente")
