@@ -4,7 +4,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from sqlalchemy import text
 import re
-import jwt
+import jwt  # pyright: ignore[reportMissingImports]
 from typing import Optional
 
 # --- CONFIGURAÇÃO JWT ---

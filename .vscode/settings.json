@@ -1,5 +1,0 @@
-{
-  "python.analysis.diagnosticSeverity": {
-    "reportMissingImports": "none"
-  }
-}
