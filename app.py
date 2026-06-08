@@ -8,11 +8,7 @@ import jwt  # pyright: ignore[reportMissingImports]
 from typing import Optional
 
 # --- CONFIGURAÇÃO JWT ---
-try:
-    JWT_SECRET = st.secrets["JWT_SECRET"]
-except KeyError:
-    st.error("❌ Chave JWT_SECRET não encontrada nas secrets. Verifique a configuração.")
-    st.stop()
+JWT_SECRET = st.secrets["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRY_DAYS = 30
 
@@ -87,7 +83,6 @@ def aplicar_estilo_customizado():
     """, unsafe_allow_html=True)
 
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
-st.write("Chaves disponíveis:", list(st.secrets.keys()))
 aplicar_estilo_customizado()
 
 # --- CONEXÃO EXCLUSIVA COM SUPABASE ---
