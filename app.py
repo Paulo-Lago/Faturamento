@@ -8,26 +8,26 @@ import re
 import jwt  # pyright: ignore[reportMissingImports]
 from typing import Optional
 
-# --- CONFIGURAÃ‡ÃƒO JWT ---
+# --- CONFIGURAÇÃO JWT ---
 JWT_SECRET = st.secrets["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRY_DAYS = 30
 
-# --- CONFIGURAÃ‡ÃƒO GERAL ---
+# --- CONFIGURAÇÃO GERAL ---
 URL_ICONE = "https://preview.redd.it/53zg1z70jxzg1.jpeg?width=640&crop=smart&auto=webp&s=57ad5ec9bee948b825fe8e208f951f6ffd2739ee"
 LISTA_SERVICOS = [
-    "ðŸ“„ XÃ©rox",
-    "ðŸ–¨ï¸ ImpressÃ£o em Papel Comum",
-    "ðŸ–¨ï¸ ImpressÃ£o em Papel FotogrÃ¡fico",
-    "ðŸ–¨ï¸ ImpressÃ£o em Papel Adesivo",
-    "ðŸ–¨ï¸ ImpressÃ£o em Papel de Diploma",
-    "ðŸ“¸ Foto 3x4",
-    "ðŸ“ CurrÃ­culo",
-    "ðŸƒ´ Venda de Figurinhas",
-    "ðŸž PÃ£o",
-    "ðŸŽ¬ ServiÃ§os de EdiÃ§Ã£o",
-    "ðŸ›¡ï¸ PlastificaÃ§Ã£o",
-    "âš™ï¸ Outros"
+    "📄 Xérox",
+    "🖨️ Impressão em Papel Comum",
+    "🖨️ Impressão em Papel Fotográfico",
+    "🖨️ Impressão em Papel Adesivo",
+    "🖨️ Impressão em Papel de Diploma",
+    "📸 Foto 3x4",
+    "📝 Currículo",
+    "🃴 Venda de Figurinhas",
+    "🍞 Pão",
+    "🎬 Serviços de Edição",
+    "🛡️ Plastificação",
+    "⚙️ Outros"
 ]
 
 def aplicar_estilo_customizado():
@@ -38,14 +38,14 @@ def aplicar_estilo_customizado():
         background: linear-gradient(180deg, #fffdfd 0%, #fff8fb 100%) !important;
         color: #1f2937 !important;
     }}
-    /* ForÃ§ar cor preta em textos e labels */
+    /* Forçar cor preta em textos e labels */
     html, body, [class*=\"st-b\"] {{ color: #1f2937 !important; }}
     .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, p, span,
     [data-testid=\"stWidgetLabel\"] p, table, th, td, [data-testid=\"stTable\"] td,
     .stDataFrame, [data-testid=\"stMetricLabel\"] p {{
         color: #1f2937 !important;
     }}
-    /* Fix para CalendÃ¡rio e Selectbox */
+    /* Fix para Calendário e Selectbox */
     div[data-baseweb=\"calendar\"] *, div[data-baseweb=\"popover\"] *,
     div[data-baseweb=\"select\"] *, .stSelectbox div[role=\"button\"] {{
         color: #1f2937 !important;
@@ -54,7 +54,7 @@ def aplicar_estilo_customizado():
     /* Estilo dos campos de entrada */
     input, textarea {{ color: #1f2937 !important; background-color: rgba(255, 255, 255, 0.96) !important; border-radius: 12px !important; }}
     div[data-baseweb=\"select\"] > div {{ background-color: #ffffff !important; border-radius: 12px !important; }}
-    /* BotÃµes */
+    /* Botões */
     button[data-testid=\"baseButton-secondary\"], .stButton > button {{
         background-color: #ffe4ef !important; color: #1f2937 !important; border-radius: 14px !important;
         width: 100% !important; border: 1px solid #f9a8d4 !important; font-weight: 600 !important; min-height: 2.8rem !important;
@@ -123,19 +123,19 @@ def aplicar_comportamento_inputs():
         height=0,
     )
 
-st.set_page_config(page_title="GestÃ£o de ServiÃ§os Pro", layout="wide")
+st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
 aplicar_estilo_customizado()
 aplicar_comportamento_inputs()
 
-# --- CONEXÃƒO EXCLUSIVA COM SUPABASE ---
+# --- CONEXÃO EXCLUSIVA COM SUPABASE ---
 @st.cache_resource
 def get_connection():
-    """Retorna a conexÃ£o com o Supabase via st.connection."""
+    """Retorna a conexão com o Supabase via st.connection."""
     try:
         return st.connection("postgresql", type="sql")
     except Exception as e:
-        st.error(f"âŒ Erro ao conectar ao Supabase: {e}")
-        st.error("Verifique se as secrets do Streamlit estÃ£o configuradas corretamente.")
+        st.error(f"❌ Erro ao conectar ao Supabase: {e}")
+        st.error("Verifique se as secrets do Streamlit estão configuradas corretamente.")
         st.stop()
 
 def run_query(query, params=None, is_select=True):
@@ -150,7 +150,7 @@ def run_query(query, params=None, is_select=True):
             return None
 
 def init_db():
-    """Cria as tabelas necessÃ¡rias no Supabase e adiciona a coluna 'id' se necessÃ¡rio."""
+    """Cria as tabelas necessárias no Supabase e adiciona a coluna 'id' se necessário."""
     run_query("CREATE TABLE IF NOT EXISTS usuarios (username TEXT PRIMARY KEY, password TEXT)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS servicos (username TEXT, data TEXT, categoria TEXT, descricao TEXT, valor NUMERIC)", is_select=False)
     run_query("CREATE TABLE IF NOT EXISTS creditos (username TEXT, cliente TEXT, valor NUMERIC, data TEXT)", is_select=False)
@@ -172,16 +172,16 @@ def init_db():
         ativo BOOLEAN DEFAULT TRUE
     )""", is_select=False)
 
-    # Adicionar coluna 'id' na tabela 'servicos' se nÃ£o existir
+    # Adicionar coluna 'id' na tabela 'servicos' se não existir
     try:
         run_query("SELECT id FROM servicos LIMIT 0", is_select=True)
     except Exception:
         run_query("ALTER TABLE servicos ADD COLUMN id SERIAL PRIMARY KEY", is_select=False)
-        st.info("âœ… Coluna 'id' adicionada Ã  tabela 'servicos'.")
+        st.info("✅ Coluna 'id' adicionada à tabela 'servicos'.")
 
 init_db()
 
-# --- FUNÃ‡Ã•ES DE AUTENTICAÃ‡ÃƒO COM JWT ---
+# --- FUNÇÕES DE AUTENTICAÇÃO COM JWT ---
 def gerar_token_jwt(username: str) -> str:
     payload = {
         'username': username,
@@ -266,7 +266,7 @@ if 'username' not in st.session_state:
 if 'token_remember' not in st.session_state:
     st.session_state.token_remember = None
 
-# --- TENTAR RESTAURAR SESSÃƒO AO CARREGAR ---
+# --- TENTAR RESTAURAR SESSÃO AO CARREGAR ---
 if not st.session_state.logged_in:
     if restaurar_sessao():
         st.rerun()
@@ -276,14 +276,14 @@ if not st.session_state.logged_in:
     st.markdown("""
     <div class='login-card'>
         <h1 style='text-align: center;'>Acesse sua conta</h1>
-        <p style='text-align: center;'>Entre para registrar serviÃ§os, acompanhar resultados e controlar crÃ©ditos.</p>
+        <p style='text-align: center;'>Entre para registrar serviços, acompanhar resultados e controlar créditos.</p>
     </div>
     """, unsafe_allow_html=True)
     _, col_center, _ = st.columns([1, 2, 1])
     with col_center:
-        user = st.text_input("UsuÃ¡rio", key="login_user", placeholder="Digite seu usuÃ¡rio")
+        user = st.text_input("Usuário", key="login_user", placeholder="Digite seu usuário")
         pw = st.text_input("Senha", type="password", key="login_pw", placeholder="Digite sua senha")
-        remember = st.checkbox("ðŸ” Lembrar meu login por 30 dias", value=False)
+        remember = st.checkbox("🔐 Lembrar meu login por 30 dias", value=False)
 
         if st.button("Entrar"):
             if user:
@@ -297,18 +297,18 @@ if not st.session_state.logged_in:
                         if salvar_sessao_supabase(user, token):
                             st.query_params["token"] = token
                             st.session_state.token_remember = token
-                            st.success("âœ… Login concluÃ­do com acesso automÃ¡tico ativo por 30 dias.")
+                            st.success("✅ Login concluído com acesso automático ativo por 30 dias.")
                         else:
-                            st.warning("âš ï¸ O login foi concluÃ­do, mas nÃ£o foi possÃ­vel ativar o acesso automÃ¡tico.")
+                            st.warning("⚠️ O login foi concluído, mas não foi possível ativar o acesso automático.")
                     else:
                         st.query_params.clear()
                         st.session_state.token_remember = None
 
                     st.rerun()
                 else:
-                    st.error("UsuÃ¡rio ou senha invÃ¡lidos. Verifique os dados e tente novamente.")
+                    st.error("Usuário ou senha inválidos. Verifique os dados e tente novamente.")
             else:
-                st.warning("Informe seu usuÃ¡rio para continuar.")
+                st.warning("Informe seu usuário para continuar.")
 
         if st.button("Criar conta"):
             if user and pw:
@@ -316,24 +316,24 @@ if not st.session_state.logged_in:
                 if check.empty:
                     run_query("INSERT INTO usuarios (username, password) VALUES (:u, :p)",
                               {"u": user, "p": pw}, is_select=False)
-                    st.success("Conta criada com sucesso. Agora faÃ§a seu login.")
+                    st.success("Conta criada com sucesso. Agora faça seu login.")
                 else:
-                    st.error("Esse usuÃ¡rio jÃ¡ estÃ¡ cadastrado.")
+                    st.error("Esse usuário já está cadastrado.")
             else:
-                st.warning("Preencha usuÃ¡rio e senha para criar sua conta.")
+                st.warning("Preencha usuário e senha para criar sua conta.")
     st.stop()
 
-# --- ÃREA DO PAINEL ---
+# --- ÁREA DO PAINEL ---
 st.markdown("""
 <div class='hero-card'>
     <h1 style='text-align: center;'>Painel Financeiro</h1>
-    <p style='text-align: center;'>Acompanhe seus registros, resultados do perÃ­odo e crÃ©ditos de clientes em um sÃ³ lugar.</p>
+    <p style='text-align: center;'>Acompanhe seus registros, resultados do período e créditos de clientes em um só lugar.</p>
 </div>
 """, unsafe_allow_html=True)
 
 col1, col2 = st.columns([9, 1])
 with col2:
-    if st.button("ðŸšª Sair"):
+    if st.button("🚪 Sair"):
         logout_completo()
 
 df_full = run_query("SELECT * FROM servicos WHERE username=:u", {"u": st.session_state.username})
@@ -353,29 +353,29 @@ if not df_full.empty:
     fat_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]['valor'].sum()
     m1, m2 = st.columns(2)
     m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
-    m2.metric("Faturamento MÃªs", f"R$ {fat_mes:,.2f}")
+    m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
 else:
-    st.info("Comece cadastrando seu primeiro serviÃ§o para acompanhar o faturamento do dia e do mÃªs.")
+    st.info("Comece cadastrando seu primeiro serviço para acompanhar o faturamento do dia e do mês.")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["âž• Novo serviÃ§o", "ðŸ“Š HistÃ³rico", "ðŸ“ˆ AnÃ¡lises", "ðŸ’³ CrÃ©ditos", "ðŸ§¾ Despesas"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Novo serviço", "📊 Histórico", "📈 Análises", "💳 Créditos", "🧾 Despesas"])
 
 with tab1:
-    st.markdown("### Novo serviÃ§o")
+    st.markdown("### Novo serviço")
     st.caption("Registre rapidamente um atendimento ou venda realizada hoje.")
     data_serv = st.date_input("Data", value=hoje, format="DD/MM/YYYY")
     cat_serv = st.selectbox("Tipo", LISTA_SERVICOS)
-    desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cÃ³pias coloridas, currÃ­culo, plastificaÃ§Ã£o...")
+    desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
     valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
-    if st.button("Salvar serviÃ§o"):
+    if st.button("Salvar serviço"):
         run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)",
                   {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'),
                    "c": cat_serv, "de": desc_serv, "v": valor_serv}, is_select=False)
-        st.success("ServiÃ§o salvo com sucesso.")
+        st.success("Serviço salvo com sucesso.")
         st.rerun()
 
 with tab2:
-    st.markdown("### HistÃ³rico de serviÃ§os")
-    st.caption("Consulte, ajuste ou exclua registros jÃ¡ lanÃ§ados.")
+    st.markdown("### Histórico de serviços")
+    st.caption("Consulte, ajuste ou exclua registros já lançados.")
 
     col_filtro1, col_filtro2 = st.columns(2)
     with col_filtro1:
@@ -384,7 +384,7 @@ with tab2:
         data_fim = st.date_input("Data Final", value=hoje, format="DD/MM/YYYY")
 
     if data_inicio > data_fim:
-        st.warning("A data inicial nÃ£o pode ser maior que a data final.")
+        st.warning("A data inicial não pode ser maior que a data final.")
     else:
         df_full['data_dt'] = pd.to_datetime(df_full['data'])
         df_filtrado = df_full[
@@ -393,7 +393,7 @@ with tab2:
         ].sort_values('data_dt', ascending=False)
 
         if df_filtrado.empty:
-            st.info("Nenhum serviÃ§o foi encontrado nesse perÃ­odo. Ajuste os filtros ou registre um novo serviÃ§o.")
+            st.info("Nenhum serviço foi encontrado nesse período. Ajuste os filtros ou registre um novo serviço.")
         else:
             df_sheet = df_filtrado.copy()
             df_sheet['Data'] = df_sheet['data_dt'].dt.strftime('%d/%m/%Y')
@@ -408,7 +408,7 @@ with tab2:
                 for _, row in df_filtrado.iterrows() if pd.notna(row.get('id'))
             }
             if not opcoes_servico:
-                st.warning("Os registros encontrados nÃ£o tÃªm identificaÃ§Ã£o suficiente para ediÃ§Ã£o.")
+                st.warning("Os registros encontrados não têm identificação suficiente para edição.")
             else:
                 servico_label = st.selectbox("Selecione um registro para editar ou excluir", list(opcoes_servico.keys()))
                 id_servico = opcoes_servico[servico_label]
@@ -422,7 +422,7 @@ with tab2:
                     indice_categoria = LISTA_SERVICOS.index(categoria)
                 except ValueError:
                     indice_categoria = 0
-                    st.warning(f"âš ï¸ A categoria original '{categoria}' nÃ£o estÃ¡ mais disponÃ­vel. Escolha a opÃ§Ã£o correta abaixo.")
+                    st.warning(f"⚠️ A categoria original '{categoria}' não está mais disponível. Escolha a opção correta abaixo.")
 
                 nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=indice_categoria, key=f"cat_{id_servico}")
                 nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
@@ -430,68 +430,68 @@ with tab2:
 
                 col_edit, col_del = st.columns(2)
                 with col_edit:
-                    if st.button("ðŸ’¾ Salvar alteraÃ§Ãµes", key=f"salvar_{id_servico}"):
+                    if st.button("💾 Salvar alterações", key=f"salvar_{id_servico}"):
                         run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v
                                     WHERE id=:id AND username=:u""",
                                   {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
                                    "v": novo_valor, "id": id_servico, "u": st.session_state.username},
                                   is_select=False)
-                        st.success("AlteraÃ§Ãµes salvas com sucesso.")
+                        st.success("Alterações salvas com sucesso.")
                         st.rerun()
                 with col_del:
-                    if st.button("ðŸ—‘ï¸ Excluir serviÃ§o", key=f"excluir_{id_servico}"):
-                        st.markdown("<div class='danger-card'><strong>Confirme a exclusÃ£o.</strong><br>Essa aÃ§Ã£o remove o registro permanentemente.</div>", unsafe_allow_html=True)
-                        confirmar = st.checkbox("Confirmo que desejo excluir este serviÃ§o.", key=f"conf_{id_servico}")
+                    if st.button("🗑️ Excluir serviço", key=f"excluir_{id_servico}"):
+                        st.markdown("<div class='danger-card'><strong>Confirme a exclusão.</strong><br>Essa ação remove o registro permanentemente.</div>", unsafe_allow_html=True)
+                        confirmar = st.checkbox("Confirmo que desejo excluir este serviço.", key=f"conf_{id_servico}")
                         if confirmar:
                             run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
                                       {"id": id_servico, "u": st.session_state.username}, is_select=False)
-                            st.success("ServiÃ§o excluÃ­do com sucesso.")
+                            st.success("Serviço excluído com sucesso.")
                             st.rerun()
 
 with tab3:
-    st.markdown("### ðŸ“Š AnÃ¡lise de faturamento")
+    st.markdown("### 📊 Análise de faturamento")
     st.caption("Use os filtros para visualizar o desempenho por categoria e por semana.")
 
-    # --- Filtro de perÃ­odo para os grÃ¡ficos ---
+    # --- Filtro de período para os gráficos ---
     col_filtro1, col_filtro2 = st.columns(2)
     with col_filtro1:
-        data_inicio_graf = st.date_input("PerÃ­odo - Data Inicial", value=inicio_mes, format="DD/MM/YYYY", key="graf_inicio")
+        data_inicio_graf = st.date_input("Período - Data Inicial", value=inicio_mes, format="DD/MM/YYYY", key="graf_inicio")
     with col_filtro2:
-        data_fim_graf = st.date_input("PerÃ­odo - Data Final", value=hoje, format="DD/MM/YYYY", key="graf_fim")
+        data_fim_graf = st.date_input("Período - Data Final", value=hoje, format="DD/MM/YYYY", key="graf_fim")
 
     if data_inicio_graf > data_fim_graf:
-        st.warning("Data inicial nÃ£o pode ser maior que a data final.")
+        st.warning("Data inicial não pode ser maior que a data final.")
     else:
-        # Filtrar o DataFrame principal pelo perÃ­odo escolhido
+        # Filtrar o DataFrame principal pelo período escolhido
         df_periodo = df_full[
             (df_full['data_dt'].dt.date >= data_inicio_graf) &
             (df_full['data_dt'].dt.date <= data_fim_graf)
         ].copy()
 
         if df_periodo.empty:
-            st.info("Ainda nÃ£o hÃ¡ dados nesse perÃ­odo. Ajuste os filtros ou registre novos serviÃ§os para visualizar os grÃ¡ficos.")
+            st.info("Ainda não há dados nesse período. Ajuste os filtros ou registre novos serviços para visualizar os gráficos.")
         else:
-            # Total do perÃ­odo
+            # Total do período
             total_periodo = df_periodo['valor'].sum()
-            st.metric("ðŸ’° Faturamento Total no PerÃ­odo", f"R$ {total_periodo:,.2f}")
+            st.metric("💰 Faturamento Total no Período", f"R$ {total_periodo:,.2f}")
             st.divider()
 
-            # --- GrÃ¡fico 1: Faturamento por Categoria ---
+            # --- Gráfico 1: Faturamento por Categoria ---
             st.markdown("### Faturamento por categoria")
             df_rank = df_periodo.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
             fig_rank = px.bar(df_rank, x='categoria', y='valor',
-                             title="ServiÃ§os com maior faturamento no perÃ­odo",
-                             labels={'categoria': 'Tipo de ServiÃ§o', 'valor': 'Valor (R$)'},
+                             title="Serviços com maior faturamento no período",
+                             labels={'categoria': 'Tipo de Serviço', 'valor': 'Valor (R$)'},
                              color_discrete_sequence=['#ffc4d8'])
             fig_rank.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             st.plotly_chart(fig_rank, use_container_width=True)
 
             st.divider()
 
-            # --- GrÃ¡fico 2: Faturamento Semanal (baseado no perÃ­odo filtrado) ---
+            # --- Gráfico 2: Faturamento Semanal (baseado no período filtrado) ---
             st.markdown("### Faturamento semanal")
 
-            # Garantir que os dados estÃ£o ordenados por data
+            # Garantir que os dados estão ordenados por data
             df_periodo_semana = df_periodo.sort_values('data_dt')
 
             # Calcular a semana (segunda a domingo) para cada registro
@@ -502,53 +502,53 @@ with tab3:
             df_semana = df_periodo_semana.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
 
             if df_semana.empty:
-                st.info("NÃ£o hÃ¡ dados suficientes para montar o grÃ¡fico semanal nesse perÃ­odo.")
+                st.info("Não há dados suficientes para montar o gráfico semanal nesse período.")
             else:
                 fig_semanal = px.bar(df_semana, x='periodo', y='valor',
-                                    title="EvoluÃ§Ã£o semanal do faturamento",
+                                    title="Evolução semanal do faturamento",
                                     labels={'periodo': 'Semana', 'valor': 'Valor (R$)'},
                                     color_discrete_sequence=['#ffc4d8'])
                 fig_semanal.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
                 st.plotly_chart(fig_semanal, use_container_width=True)
 
 with tab4:
-    st.markdown("### ðŸ’³ GestÃ£o de crÃ©ditos")
-    st.caption("Acompanhe o saldo dos clientes e registre entradas ou dÃ©bitos com facilidade.")
+    st.markdown("### 💳 Gestão de créditos")
+    st.caption("Acompanhe o saldo dos clientes e registre entradas ou débitos com facilidade.")
 
     # Inicializar estados de controle
     if "credito_atualizado" not in st.session_state:
         st.session_state.credito_atualizado = False
 
-    # Recarregar dados se necessÃ¡rio
+    # Recarregar dados se necessário
     if st.session_state.credito_atualizado:
         df_creds = run_query("SELECT * FROM creditos WHERE username=:u", {"u": st.session_state.username})
         st.session_state.credito_atualizado = False
 
-    # --- FormulÃ¡rio de movimentaÃ§Ã£o (estilo card) ---
+    # --- Formulário de movimentação (estilo card) ---
     with st.container(border=True):
-        st.markdown("#### Registrar crÃ©dito ou dÃ©bito")
+        st.markdown("#### Registrar crédito ou débito")
         col1, col2 = st.columns([2, 1])
         with col1:
-            cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: JoÃ£o Silva")
+            cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: João Silva")
         with col2:
             valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=0.5, format="%.2f", key="valor_cred")
 
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("âž• Adicionar CrÃ©dito", use_container_width=True, type="primary"):
+            if st.button("➕ Adicionar Crédito", use_container_width=True, type="primary"):
                 if cliente_nome and valor_mov > 0:
                     run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
                               {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": valor_mov,
                                "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                     st.session_state.credito_atualizado = True
-                    st.success(f"âœ… CrÃ©dito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
+                    st.success(f"✅ Crédito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
                     st.balloons()
                     st.rerun()
                 else:
                     st.warning("Preencha o nome do cliente e informe um valor positivo.")
 
         with col_btn2:
-            if st.button("ðŸ”» Usar CrÃ©dito", use_container_width=True):
+            if st.button("🔻 Usar Crédito", use_container_width=True):
                 if cliente_nome and valor_mov > 0:
                     # Verificar se cliente tem saldo suficiente
                     saldo_atual = df_creds[df_creds['cliente'] == cliente_nome.upper()]['valor'].sum() if not df_creds.empty else 0
@@ -557,24 +557,24 @@ with tab4:
                                   {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": -valor_mov,
                                    "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                         st.session_state.credito_atualizado = True
-                        st.success(f"âœ… DÃ©bito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
+                        st.success(f"✅ Débito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
                         st.rerun()
                     else:
-                        st.error(f"âŒ Saldo insuficiente para {cliente_nome.upper()}. Saldo atual: R$ {saldo_atual:.2f}")
+                        st.error(f"❌ Saldo insuficiente para {cliente_nome.upper()}. Saldo atual: R$ {saldo_atual:.2f}")
                 else:
                     st.warning("Preencha o nome do cliente e informe um valor positivo.")
 
     st.divider()
 
-    # --- ExibiÃ§Ã£o de saldos (cards) ---
+    # --- Exibição de saldos (cards) ---
     if df_creds.empty:
-        st.info("ðŸ“­ Ainda nÃ£o hÃ¡ movimentaÃ§Ãµes de crÃ©dito registradas. Use o formulÃ¡rio acima para lanÃ§ar a primeira.")
+        st.info("📭 Ainda não há movimentações de crédito registradas. Use o formulário acima para lançar a primeira.")
     else:
         # Calcular saldo por cliente
         df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
         df_saldo = df_saldo[df_saldo['valor'] != 0].sort_values('valor', ascending=False)
 
-        st.markdown("#### ðŸ‘¥ Saldo por cliente")
+        st.markdown("#### 👥 Saldo por cliente")
         # Usar 3 colunas para os cards
         cols = st.columns(3)
         for idx, (_, row) in enumerate(df_saldo.iterrows()):
@@ -590,15 +590,15 @@ with tab4:
 
         st.divider()
 
-        # --- Tabela de movimentaÃ§Ãµes recentes ---
-        st.markdown("#### ðŸ“‹ HistÃ³rico de movimentaÃ§Ãµes")
+        # --- Tabela de movimentações recentes ---
+        st.markdown("#### 📋 Histórico de movimentações")
         df_hist = df_creds.copy()
         df_hist['data_fmt'] = pd.to_datetime(df_hist['data']).dt.strftime('%d/%m/%Y')
-        df_hist['tipo'] = df_hist['valor'].apply(lambda x: "âž• CrÃ©dito" if x > 0 else "ðŸ”» DÃ©bito")
+        df_hist['tipo'] = df_hist['valor'].apply(lambda x: "➕ Crédito" if x > 0 else "🔻 Débito")
         df_hist['valor_abs'] = df_hist['valor'].abs()
         df_hist = df_hist.sort_values('data', ascending=False)
 
-        # Exibir apenas as 20 Ãºltimas
+        # Exibir apenas as 20 últimas
         df_display = df_hist[['data_fmt', 'cliente', 'tipo', 'valor_abs']].head(20)
         df_display = df_display.rename(columns={
             'data_fmt': 'Data',
@@ -611,8 +611,8 @@ with tab4:
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
 with tab5:
-    st.markdown("### ðŸ§¾ GestÃ£o de despesas")
-    st.caption("Cadastre categorias de gastos, registre despesas e acompanhe o resumo financeiro do perÃ­odo.")
+    st.markdown("### 🧾 Gestão de despesas")
+    st.caption("Cadastre categorias de gastos, registre despesas e acompanhe o resumo financeiro do período.")
 
     col_tipo, col_lancamento = st.columns([1, 2])
     with col_tipo:
@@ -627,11 +627,11 @@ with tab5:
                     st.success("Tipo de despesa adicionado com sucesso.")
                     st.rerun()
                 else:
-                    st.warning("Esse tipo de despesa jÃ¡ estÃ¡ cadastrado.")
+                    st.warning("Esse tipo de despesa já está cadastrado.")
             else:
                 st.warning("Informe um nome para o tipo de despesa.")
         if df_expense_types.empty:
-            st.info("Cadastre pelo menos um tipo de despesa para comeÃ§ar os lanÃ§amentos.")
+            st.info("Cadastre pelo menos um tipo de despesa para começar os lançamentos.")
         else:
             st.dataframe(df_expense_types.rename(columns={"nome": "Tipo"})[["Tipo"]], use_container_width=True, hide_index=True)
 
@@ -643,7 +643,7 @@ with tab5:
             data_despesa = st.date_input("Data da despesa", value=hoje, format="DD/MM/YYYY", key="data_despesa")
             tipo_map = {row['nome']: int(row['id']) for _, row in df_expense_types.iterrows()}
             tipo_nome = st.selectbox("Tipo de despesa", list(tipo_map.keys()), key="tipo_despesa")
-            desc_despesa = st.text_input("DescriÃ§Ã£o", placeholder="Ex: Compra de resma A4, reposiÃ§Ã£o de tinta", key="desc_despesa")
+            desc_despesa = st.text_input("Descrição", placeholder="Ex: Compra de resma A4, reposição de tinta", key="desc_despesa")
             valor_despesa = st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_despesa")
             if st.button("Salvar despesa", use_container_width=True, type="primary"):
                 if valor_despesa > 0:
@@ -658,7 +658,7 @@ with tab5:
                     st.warning("Informe um valor positivo para a despesa.")
 
     st.divider()
-    st.markdown("#### Resumo de despesas por perÃ­odo")
+    st.markdown("#### Resumo de despesas por período")
     col_d1, col_d2 = st.columns(2)
     with col_d1:
         data_inicio_desp = st.date_input("Data inicial", value=inicio_mes, format="DD/MM/YYYY", key="desp_inicio")
@@ -666,9 +666,9 @@ with tab5:
         data_fim_desp = st.date_input("Data final", value=hoje, format="DD/MM/YYYY", key="desp_fim")
 
     if data_inicio_desp > data_fim_desp:
-        st.warning("A data inicial nÃ£o pode ser maior que a data final.")
+        st.warning("A data inicial não pode ser maior que a data final.")
     elif df_expenses.empty:
-        st.info("Ainda nÃ£o hÃ¡ despesas registradas para exibir.")
+        st.info("Ainda não há despesas registradas para exibir.")
     else:
         df_expenses['data_dt'] = pd.to_datetime(df_expenses['data'])
         df_expenses_periodo = df_expenses[
@@ -676,10 +676,10 @@ with tab5:
             (df_expenses['data_dt'].dt.date <= data_fim_desp)
         ].copy()
         if df_expenses_periodo.empty:
-            st.info("Nenhuma despesa foi encontrada nesse perÃ­odo.")
+            st.info("Nenhuma despesa foi encontrada nesse período.")
         else:
             total_desp = df_expenses_periodo['valor'].sum()
-            st.metric("Total de despesas no perÃ­odo", f"R$ {total_desp:,.2f}")
+            st.metric("Total de despesas no período", f"R$ {total_desp:,.2f}")
             df_tipo_desp = df_expenses_periodo.groupby('tipo_nome')['valor'].sum().reset_index().sort_values('valor', ascending=False)
             fig_desp = px.bar(df_tipo_desp, x='tipo_nome', y='valor',
                               title="Despesas por tipo",
@@ -689,6 +689,6 @@ with tab5:
             st.plotly_chart(fig_desp, use_container_width=True)
             df_expenses_periodo['Data'] = df_expenses_periodo['data_dt'].dt.strftime('%d/%m/%Y')
             df_expenses_periodo['Tipo'] = df_expenses_periodo['tipo_nome']
-            df_expenses_periodo['DescriÃ§Ã£o'] = df_expenses_periodo['descricao']
+            df_expenses_periodo['Descrição'] = df_expenses_periodo['descricao']
             df_expenses_periodo['Valor'] = df_expenses_periodo['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_expenses_periodo[['Data', 'Tipo', 'DescriÃ§Ã£o', 'Valor']], use_container_width=True, hide_index=True)
+            st.dataframe(df_expenses_periodo[['Data', 'Tipo', 'Descrição', 'Valor']], use_container_width=True, hide_index=True)
