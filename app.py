@@ -33,30 +33,29 @@ def aplicar_estilo_customizado():
     <style>
     /* Fundo principal branco */
     .stApp, .stMain, .stHeader, .stAppHeader, .block-container, [data-testid=\"stTabContent\"] {{
-        background-color: #ffffff !important;
-        color: #000000 !important;
+        background: linear-gradient(180deg, #fffdfd 0%, #fff8fb 100%) !important;
+        color: #1f2937 !important;
     }}
     /* Forçar cor preta em textos e labels */
-    html, body, [class*=\"st-b\"] {{ color: #000000 !important; }}
+    html, body, [class*=\"st-b\"] {{ color: #1f2937 !important; }}
     .stMarkdown, .stText, [data-testid=\"stMetricValue\"], label, h1, h2, h3, p, span, 
     [data-testid=\"stWidgetLabel\"] p, table, th, td, [data-testid=\"stTable\"] td, 
     .stDataFrame, [data-testid=\"stMetricLabel\"] p {{
-        color: #000000 !important;
-        font-weight: 600 !important;
+        color: #1f2937 !important;
     }}
     /* Fix para Calendário e Selectbox */
     div[data-baseweb=\"calendar\"] *, div[data-baseweb=\"popover\"] *, 
     div[data-baseweb=\"select\"] *, .stSelectbox div[role=\"button\"] {{
-        color: #000000 !important;
+        color: #1f2937 !important;
         background-color: #ffffff !important;
     }}
     /* Estilo dos campos de entrada */
-    input, textarea {{ color: #000000 !important; background-color: #f0f2f6 !important; }}
-    div[data-baseweb=\"select\"] > div {{ background-color: #ffffff !important; }}
+    input, textarea {{ color: #1f2937 !important; background-color: rgba(255, 255, 255, 0.96) !important; border-radius: 12px !important; }}
+    div[data-baseweb=\"select\"] > div {{ background-color: #ffffff !important; border-radius: 12px !important; }}
     /* Botões */
     button[data-testid=\"baseButton-secondary\"], .stButton > button {{
-        background-color: #ffc4d8 !important; color: #000000 !important; border-radius: 12px !important;
-        width: 100% !important; border: 1px solid #ffb0cc !important; font-weight: bold !important;
+        background-color: #ffe4ef !important; color: #1f2937 !important; border-radius: 14px !important;
+        width: 100% !important; border: 1px solid #f9a8d4 !important; font-weight: 600 !important; min-height: 2.8rem !important;
     }}
     /* IMAGEM DE FUNDO */
     .main-bg-container {{
@@ -66,7 +65,7 @@ def aplicar_estilo_customizado():
         width: 100vw !important;
         height: 100vh !important;
         z-index: 0 !important;
-        background-color: #ffffff;
+        background-color: transparent;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
@@ -75,9 +74,22 @@ def aplicar_estilo_customizado():
     .bg-image {{
         width: 80vw !important;
         max-width: 500px !important;
-        opacity: 0.15 !important;
+        opacity: 0.08 !important;
     }}
     [data-testid=\"stVerticalBlock\"] {{ position: relative !important; z-index: 10 !important; }}
+    .block-container {{ padding-top: 1.5rem !important; padding-bottom: 2.5rem !important; max-width: 1100px; }}
+    h1, h2, h3 {{ letter-spacing: -0.02em; }}
+    p, [data-testid=\"stCaptionContainer\"] {{ color: #6b7280 !important; }}
+    [data-testid=\"stMetric\"] {{ background: rgba(255,255,255,0.9); border: 1px solid rgba(249,168,212,0.45); border-radius: 18px; padding: 0.8rem 1rem; box-shadow: 0 16px 30px rgba(15, 23, 42, 0.05); }}
+    [data-testid=\"stMetricLabel\"] p {{ color: #6b7280 !important; font-weight: 600 !important; }}
+    [data-testid=\"stMetricValue\"] {{ color: #1f2937 !important; font-weight: 700 !important; }}
+    [data-testid=\"stTabs\"] {{ margin-top: 1rem; }}
+    .hero-card, .login-card, .danger-card {{ background: rgba(255,255,255,0.9); border: 1px solid rgba(249,168,212,0.35); border-radius: 22px; padding: 1.15rem 1.2rem; box-shadow: 0 18px 36px rgba(15, 23, 42, 0.05); }}
+    .login-card {{ margin-top: 1rem; padding: 1.4rem; }}
+    .hero-card h1, .login-card h1 {{ margin-bottom: 0.25rem; }}
+    .hero-card p, .login-card p {{ margin-bottom: 0; }}
+    .danger-card {{ background: #fff1f2; border-color: #fda4af; margin-top: 0.8rem; }}
+    @media (max-width: 768px) {{ .block-container {{ padding-top: 1rem !important; }} .bg-image {{ width: 92vw !important; opacity: 0.05 !important; }} }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
     """, unsafe_allow_html=True)
@@ -222,11 +234,16 @@ if not st.session_state.logged_in:
 
 # --- TELA DE LOGIN ---
 if not st.session_state.logged_in:
-    st.markdown("<h1 style='text-align: center;'>Acesso ao Sistema</h1>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class='login-card'>
+        <h1 style='text-align: center;'>Acesse sua conta</h1>
+        <p style='text-align: center;'>Entre para registrar serviços, acompanhar resultados e controlar créditos.</p>
+    </div>
+    """, unsafe_allow_html=True)
     _, col_center, _ = st.columns([1, 2, 1])
     with col_center:
-        user = st.text_input("Usuário", key="login_user")
-        pw = st.text_input("Senha", type="password", key="login_pw")
+        user = st.text_input("Usuário", key="login_user", placeholder="Digite seu usuário")
+        pw = st.text_input("Senha", type="password", key="login_pw", placeholder="Digite sua senha")
         remember = st.checkbox("🔐 Lembrar meu login por 30 dias", value=False)
 
         if st.button("Entrar"):
@@ -241,34 +258,39 @@ if not st.session_state.logged_in:
                         if salvar_sessao_supabase(user, token):
                             st.query_params["token"] = token
                             st.session_state.token_remember = token
-                            st.success("✅ Login salvo! Você não precisará fazer login novamente por 30 dias.")
+                            st.success("✅ Login concluído com acesso automático ativo por 30 dias.")
                         else:
-                            st.warning("⚠️ Não foi possível salvar o login automático.")
+                            st.warning("⚠️ O login foi concluído, mas não foi possível ativar o acesso automático.")
                     else:
                         st.query_params.clear()
                         st.session_state.token_remember = None
 
                     st.rerun()
                 else:
-                    st.error("Login ou senha incorretos")
+                    st.error("Usuário ou senha inválidos. Verifique os dados e tente novamente.")
             else:
-                st.warning("Digite o usuário")
+                st.warning("Informe seu usuário para continuar.")
 
-        if st.button("Criar Conta"):
+        if st.button("Criar conta"):
             if user and pw:
                 check = run_query("SELECT username FROM usuarios WHERE username = :u", {"u": user})
                 if check.empty:
                     run_query("INSERT INTO usuarios (username, password) VALUES (:u, :p)",
                               {"u": user, "p": pw}, is_select=False)
-                    st.success("Conta criada com sucesso! Agora faça login.")
+                    st.success("Conta criada com sucesso. Agora faça seu login.")
                 else:
-                    st.error("Usuário já existe.")
+                    st.error("Esse usuário já está cadastrado.")
             else:
-                st.warning("Preencha usuário e senha.")
+                st.warning("Preencha usuário e senha para criar sua conta.")
     st.stop()
 
 # --- ÁREA DO PAINEL ---
-st.markdown("<h1 style='text-align: center;'>Painel Financeiro</h1>", unsafe_allow_html=True)
+st.markdown("""
+<div class='hero-card'>
+    <h1 style='text-align: center;'>Painel Financeiro</h1>
+    <p style='text-align: center;'>Acompanhe seus registros, resultados do período e créditos de clientes em um só lugar.</p>
+</div>
+""", unsafe_allow_html=True)
 
 col1, col2 = st.columns([9, 1])
 with col2:
@@ -288,24 +310,28 @@ if not df_full.empty:
     m1, m2 = st.columns(2)
     m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
     m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
+else:
+    st.info("Comece cadastrando seu primeiro serviço para acompanhar o faturamento do dia e do mês.")
 
-tab1, tab2, tab3, tab4 = st.tabs(["➕ Novo", "📊 Histórico", "📈 Ranking", "💳 Créditos"])
+tab1, tab2, tab3, tab4 = st.tabs(["➕ Novo serviço", "📊 Histórico", "📈 Análises", "💳 Créditos"])
 
 with tab1:
     st.markdown("### Novo serviço")
+    st.caption("Registre rapidamente um atendimento ou venda realizada hoje.")
     data_serv = st.date_input("Data", value=hoje, format="DD/MM/YYYY")
     cat_serv = st.selectbox("Tipo", LISTA_SERVICOS)
-    desc_serv = st.text_input("Detalhes")
+    desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
     valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
-    if st.button("Salvar"):
+    if st.button("Salvar serviço"):
         run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)",
                   {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'),
                    "c": cat_serv, "de": desc_serv, "v": valor_serv}, is_select=False)
-        st.success("Registro efetuado!")
+        st.success("Serviço salvo com sucesso.")
         st.rerun()
 
 with tab2:
-    st.markdown("### Histórico de Serviços")
+    st.markdown("### Histórico de serviços")
+    st.caption("Consulte, ajuste ou exclua registros já lançados.")
     
     col_filtro1, col_filtro2 = st.columns(2)
     with col_filtro1:
@@ -314,7 +340,7 @@ with tab2:
         data_fim = st.date_input("Data Final", value=hoje, format="DD/MM/YYYY")
     
     if data_inicio > data_fim:
-        st.warning("Data inicial não pode ser maior que a data final.")
+        st.warning("A data inicial não pode ser maior que a data final.")
     else:
         df_full['data_dt'] = pd.to_datetime(df_full['data'])
         df_filtrado = df_full[
@@ -323,12 +349,12 @@ with tab2:
         ].sort_values('data_dt', ascending=False)
         
         if df_filtrado.empty:
-            st.info("Nenhum serviço encontrado no período selecionado.")
+            st.info("Nenhum serviço foi encontrado nesse período. Ajuste os filtros ou registre um novo serviço.")
         else:
             for idx, row in df_filtrado.iterrows():
                 id_servico = row.get('id')
                 if id_servico is None:
-                    st.warning("Registro sem ID identificado. Contate o administrador.")
+                    st.warning("Um registro está sem identificação e não pode ser editado com segurança.")
                     continue
                     
                 data_br = pd.to_datetime(row['data']).strftime('%d/%m/%Y')
@@ -344,7 +370,7 @@ with tab2:
                         indice_categoria = LISTA_SERVICOS.index(categoria)
                     except ValueError:
                         indice_categoria = 0
-                        st.warning(f"⚠️ A categoria original '{categoria}' não está mais na lista. Selecione a categoria correta abaixo.")
+                        st.warning(f"⚠️ A categoria original '{categoria}' não está mais disponível. Escolha a opção correta abaixo.")
                     
                     nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=indice_categoria, key=f"cat_{id_servico}")
                     nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
@@ -352,25 +378,27 @@ with tab2:
                     
                     col_edit, col_del = st.columns(2)
                     with col_edit:
-                        if st.button("💾 Salvar Alterações", key=f"salvar_{id_servico}"):
+                        if st.button("💾 Salvar alterações", key=f"salvar_{id_servico}"):
                             run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v 
                                         WHERE id=:id AND username=:u""",
                                       {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
                                        "v": novo_valor, "id": id_servico, "u": st.session_state.username},
                                       is_select=False)
-                            st.success("Registro atualizado!")
+                            st.success("Alterações salvas com sucesso.")
                             st.rerun()
                     with col_del:
-                        if st.button("🗑️ Excluir", key=f"excluir_{id_servico}"):
-                            confirmar = st.checkbox("Tem certeza? Marque para excluir permanentemente.", key=f"conf_{id_servico}")
+                        if st.button("🗑️ Excluir serviço", key=f"excluir_{id_servico}"):
+                            st.markdown("<div class='danger-card'><strong>Confirme a exclusão.</strong><br>Essa ação remove o registro permanentemente.</div>", unsafe_allow_html=True)
+                            confirmar = st.checkbox("Confirmo que desejo excluir este serviço.", key=f"conf_{id_servico}")
                             if confirmar:
                                 run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
                                           {"id": id_servico, "u": st.session_state.username}, is_select=False)
-                                st.success("Registro excluído!")
+                                st.success("Serviço excluído com sucesso.")
                                 st.rerun()
 
 with tab3:
-    st.markdown("### 📊 Análise de Faturamento")
+    st.markdown("### 📊 Análise de faturamento")
+    st.caption("Use os filtros para visualizar o desempenho por categoria e por semana.")
     
     # --- Filtro de período para os gráficos ---
     col_filtro1, col_filtro2 = st.columns(2)
@@ -389,7 +417,7 @@ with tab3:
         ].copy()
         
         if df_periodo.empty:
-            st.info("Nenhum serviço encontrado no período selecionado.")
+            st.info("Ainda não há dados nesse período. Ajuste os filtros ou registre novos serviços para visualizar os gráficos.")
         else:
             # Total do período
             total_periodo = df_periodo['valor'].sum()
@@ -397,19 +425,19 @@ with tab3:
             st.divider()
             
             # --- Gráfico 1: Faturamento por Categoria ---
-            st.markdown("### Faturamento por Categoria")
+            st.markdown("### Faturamento por categoria")
             df_rank = df_periodo.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
             fig_rank = px.bar(df_rank, x='categoria', y='valor', 
-                             title=f"Faturamento por Tipo de Serviço ({data_inicio_graf.strftime('%d/%m/%Y')} a {data_fim_graf.strftime('%d/%m/%Y')})",
+                             title="Serviços com maior faturamento no período",
                              labels={'categoria': 'Tipo de Serviço', 'valor': 'Valor (R$)'},
                              color_discrete_sequence=['#ffc4d8'])
-            fig_rank.update_layout(showlegend=False)
+            fig_rank.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             st.plotly_chart(fig_rank, use_container_width=True)
             
             st.divider()
             
             # --- Gráfico 2: Faturamento Semanal (baseado no período filtrado) ---
-            st.markdown("### Faturamento Semanal")
+            st.markdown("### Faturamento semanal")
             
             # Garantir que os dados estão ordenados por data
             df_periodo_semana = df_periodo.sort_values('data_dt')
@@ -422,18 +450,18 @@ with tab3:
             df_semana = df_periodo_semana.groupby(['segunda', 'periodo'])['valor'].sum().reset_index().sort_values('segunda')
             
             if df_semana.empty:
-                st.info("Não há dados suficientes para gráfico semanal no período selecionado.")
+                st.info("Não há dados suficientes para montar o gráfico semanal nesse período.")
             else:
                 fig_semanal = px.bar(df_semana, x='periodo', y='valor', 
-                                    title=f"Faturamento por Semana ({data_inicio_graf.strftime('%d/%m/%Y')} a {data_fim_graf.strftime('%d/%m/%Y')})",
+                                    title="Evolução semanal do faturamento",
                                     labels={'periodo': 'Semana', 'valor': 'Valor (R$)'},
                                     color_discrete_sequence=['#ffc4d8'])
-                fig_semanal.update_layout(showlegend=False)
+                fig_semanal.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
                 st.plotly_chart(fig_semanal, use_container_width=True)
 
 with tab4:
-    st.markdown("### 💳 Gestão de Créditos")
-    st.caption("Controle de créditos de clientes – adicione ou utilize saldos.")
+    st.markdown("### 💳 Gestão de créditos")
+    st.caption("Acompanhe o saldo dos clientes e registre entradas ou débitos com facilidade.")
     
     # Inicializar estados de controle
     if "credito_atualizado" not in st.session_state:
@@ -446,7 +474,7 @@ with tab4:
     
     # --- Formulário de movimentação (estilo card) ---
     with st.container(border=True):
-        st.markdown("#### ➕ Movimentar Crédito")
+        st.markdown("#### Registrar crédito ou débito")
         col1, col2 = st.columns([2, 1])
         with col1:
             cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: João Silva")
@@ -461,11 +489,11 @@ with tab4:
                               {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": valor_mov,
                                "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                     st.session_state.credito_atualizado = True
-                    st.success(f"✅ R$ {valor_mov:.2f} adicionado para {cliente_nome.upper()}!")
+                    st.success(f"✅ Crédito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
                     st.balloons()
                     st.rerun()
                 else:
-                    st.warning("Preencha o nome do cliente e um valor positivo.")
+                    st.warning("Preencha o nome do cliente e informe um valor positivo.")
         
         with col_btn2:
             if st.button("🔻 Usar Crédito", use_container_width=True):
@@ -477,24 +505,24 @@ with tab4:
                                   {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": -valor_mov,
                                    "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                         st.session_state.credito_atualizado = True
-                        st.success(f"✅ R$ {valor_mov:.2f} debitado de {cliente_nome.upper()}!")
+                        st.success(f"✅ Débito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
                         st.rerun()
                     else:
                         st.error(f"❌ Saldo insuficiente para {cliente_nome.upper()}. Saldo atual: R$ {saldo_atual:.2f}")
                 else:
-                    st.warning("Preencha o nome do cliente e um valor positivo.")
+                    st.warning("Preencha o nome do cliente e informe um valor positivo.")
     
     st.divider()
     
     # --- Exibição de saldos (cards) ---
     if df_creds.empty:
-        st.info("📭 Nenhuma movimentação de crédito registrada.")
+        st.info("📭 Ainda não há movimentações de crédito registradas. Use o formulário acima para lançar a primeira.")
     else:
         # Calcular saldo por cliente
         df_saldo = df_creds.groupby('cliente')['valor'].sum().reset_index()
         df_saldo = df_saldo[df_saldo['valor'] != 0].sort_values('valor', ascending=False)
         
-        st.markdown("#### 👥 Saldo por Cliente")
+        st.markdown("#### 👥 Saldo por cliente")
         # Usar 3 colunas para os cards
         cols = st.columns(3)
         for idx, (_, row) in enumerate(df_saldo.iterrows()):
@@ -511,7 +539,7 @@ with tab4:
         st.divider()
         
         # --- Tabela de movimentações recentes ---
-        st.markdown("#### 📋 Histórico de Movimentações")
+        st.markdown("#### 📋 Histórico de movimentações")
         df_hist = df_creds.copy()
         df_hist['data_fmt'] = pd.to_datetime(df_hist['data']).dt.strftime('%d/%m/%Y')
         df_hist['tipo'] = df_hist['valor'].apply(lambda x: "➕ Crédito" if x > 0 else "🔻 Débito")
