@@ -34,6 +34,73 @@ def data_atual_brasilia(agora_utc=None):
     agora_utc = agora_utc or datetime.now(timezone.utc)
     return agora_utc.astimezone(timezone(timedelta(hours=-3))).date()
 
+
+def registrar_feedback_operacao(mensagem):
+    st.session_state["feedback_operacao"] = mensagem
+
+
+def exibir_feedback_operacao():
+    mensagem = st.session_state.pop("feedback_operacao", None)
+    if mensagem:
+        st.success(mensagem)
+        st.balloons()
+
+
+def estilizar_grafico(fig):
+    fig.update_layout(
+        font=dict(color="#111827"),
+        title_font=dict(color="#111827"),
+        xaxis=dict(tickfont=dict(color="#111827"), title_font=dict(color="#111827")),
+        yaxis=dict(tickfont=dict(color="#111827"), title_font=dict(color="#111827")),
+        legend=dict(font=dict(color="#111827")),
+    )
+    return fig
+
+
+def exibir_tabela_responsiva(df, colunas_sem_quebra=None):
+    colunas_sem_quebra = colunas_sem_quebra or []
+    tabela_id = f"tabela-{abs(hash(tuple(df.columns)))}"
+    indices = [
+        df.columns.get_loc(coluna) + 1
+        for coluna in colunas_sem_quebra
+        if coluna in df.columns
+    ]
+    regras = "".join(
+        f".{tabela_id} th:nth-child({indice}), "
+        f".{tabela_id} td:nth-child({indice}) {{ white-space: nowrap; }}"
+        for indice in indices
+    )
+    html = df.to_html(
+        index=False,
+        escape=True,
+        border=0,
+        classes=["tabela-responsiva", tabela_id],
+    )
+    st.markdown(
+        f"<style>{regras}</style><div class='tabela-scroll'>{html}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def nome_tipo_duplicado(df_tipos, nome, tipo_id_atual=None):
+    if df_tipos.empty:
+        return False
+
+    duplicados = df_tipos["nome"].fillna("").str.strip().str.upper() == nome.strip().upper()
+    if tipo_id_atual is not None:
+        ids = pd.to_numeric(df_tipos["id"], errors="coerce")
+        duplicados &= ids != int(tipo_id_atual)
+    return bool(duplicados.any())
+
+
+def contar_despesas_tipo(df_despesas, tipo_id):
+    if df_despesas.empty or "tipo_id" not in df_despesas.columns:
+        return 0
+
+    ids = pd.to_numeric(df_despesas["tipo_id"], errors="coerce")
+    return int((ids == int(tipo_id)).sum())
+
+
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
@@ -97,6 +164,12 @@ def aplicar_estilo_customizado():
     .danger-card {{ background: #fff1f2; border-color: #fda4af; margin-top: 0.8rem; }}
     .sheet-card {{ background: rgba(255,255,255,0.92); border: 1px solid rgba(209,213,219,0.8); border-radius: 16px; padding: 0.75rem; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04); }}
     [data-testid=\"stDataFrame\"] {{ border-radius: 14px; overflow: hidden; border: 1px solid rgba(209,213,219,0.8); }}
+    .tabela-scroll {{ width: 100%; overflow-x: auto; border: 1px solid #d1d5db; border-radius: 14px; background: #ffffff; }}
+    .tabela-responsiva {{ width: 100%; min-width: 680px; border-collapse: collapse; color: #111827; }}
+    .tabela-responsiva th, .tabela-responsiva td {{ padding: 0.72rem 0.8rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; color: #111827 !important; }}
+    .tabela-responsiva th {{ background: #f9fafb; font-weight: 700; white-space: nowrap; }}
+    .tabela-responsiva td {{ white-space: normal; overflow-wrap: break-word; word-break: normal; }}
+    .tabela-responsiva tr:last-child td {{ border-bottom: 0; }}
     @media (max-width: 768px) {{ .block-container {{ padding-top: 1rem !important; }} .bg-image {{ width: 92vw !important; opacity: 0.05 !important; }} }}
     </style>
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
@@ -340,6 +413,8 @@ with col2:
     if st.button("🚪 Sair"):
         logout_completo()
 
+exibir_feedback_operacao()
+
 df_full = run_query("SELECT * FROM servicos WHERE username=:u", {"u": st.session_state.username})
 df_creds = run_query("SELECT * FROM creditos WHERE username=:u", {"u": st.session_state.username})
 df_expenses = run_query("""SELECT d.*, t.nome AS tipo_nome
@@ -370,15 +445,18 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Novo serviço", "📊 Histórico", 
 with tab1:
     st.markdown("### Novo serviço")
     st.caption("Registre rapidamente um atendimento ou venda realizada hoje.")
-    data_serv = st.date_input("Data", value=hoje, format="DD/MM/YYYY")
-    cat_serv = st.selectbox("Tipo", LISTA_SERVICOS)
-    desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
-    valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
-    if st.button("Salvar serviço"):
+    with st.form("form_novo_servico", clear_on_submit=True):
+        data_serv = st.date_input("Data", value=hoje, format="DD/MM/YYYY")
+        cat_serv = st.selectbox("Tipo", LISTA_SERVICOS)
+        desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
+        valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
+        salvar_servico = st.form_submit_button("Salvar serviço", use_container_width=True)
+
+    if salvar_servico:
         run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)",
                   {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'),
                    "c": cat_serv, "de": desc_serv, "v": valor_serv}, is_select=False)
-        st.success("Serviço salvo com sucesso.")
+        registrar_feedback_operacao("Serviço salvo com sucesso.")
         st.rerun()
 
 with tab2:
@@ -408,53 +486,67 @@ with tab2:
             df_sheet['Tipo'] = df_sheet['categoria']
             df_sheet['Detalhes'] = df_sheet['descricao']
             df_sheet['Valor'] = df_sheet['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.markdown("<div class='sheet-card'>", unsafe_allow_html=True)
-            st.dataframe(df_sheet[['Data', 'Tipo', 'Detalhes', 'Valor']], use_container_width=True, hide_index=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            exibir_tabela_responsiva(
+                df_sheet[['Data', 'Tipo', 'Detalhes', 'Valor']],
+                colunas_sem_quebra=["Data", "Valor"],
+            )
             opcoes_servico = {
-                f"{pd.to_datetime(row['data']).strftime('%d/%m/%Y')} | {row['categoria']} | R$ {float(row['valor']):,.2f}": int(row['id'])
+                int(row['id']): f"{pd.to_datetime(row['data']).strftime('%d/%m/%Y')} | {row['categoria']} | R$ {float(row['valor']):,.2f}"
                 for _, row in df_filtrado.iterrows() if pd.notna(row.get('id'))
             }
             if not opcoes_servico:
                 st.warning("Os registros encontrados não têm identificação suficiente para edição.")
             else:
-                servico_label = st.selectbox("Selecione um registro para editar ou excluir", list(opcoes_servico.keys()))
-                id_servico = opcoes_servico[servico_label]
-                row = df_filtrado[df_filtrado['id'] == id_servico].iloc[0]
-                categoria = row['categoria']
-                descricao = row['descricao']
-                valor = row['valor']
-                nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), format="DD/MM/YYYY", key=f"data_{id_servico}")
+                if st.session_state.pop("limpar_servico_gerenciar", False):
+                    st.session_state.pop("servico_gerenciar", None)
 
-                try:
-                    indice_categoria = LISTA_SERVICOS.index(categoria)
-                except ValueError:
-                    indice_categoria = 0
-                    st.warning(f"⚠️ A categoria original '{categoria}' não está mais disponível. Escolha a opção correta abaixo.")
+                id_servico = st.selectbox(
+                    "Selecione um registro para editar ou excluir",
+                    options=list(opcoes_servico.keys()),
+                    format_func=lambda servico_id: opcoes_servico[servico_id],
+                    index=None,
+                    placeholder="Escolha um serviço",
+                    key="servico_gerenciar",
+                )
 
-                nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=indice_categoria, key=f"cat_{id_servico}")
-                nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
-                novo_valor = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=float(valor), format="%.2f", key=f"valor_{id_servico}")
+                if id_servico is not None:
+                    row = df_filtrado[df_filtrado['id'] == id_servico].iloc[0]
+                    categoria = row['categoria']
+                    descricao = row['descricao']
+                    valor = row['valor']
+                    nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), format="DD/MM/YYYY", key=f"data_{id_servico}")
 
-                col_edit, col_del = st.columns(2)
-                with col_edit:
-                    if st.button("💾 Salvar alterações", key=f"salvar_{id_servico}"):
-                        run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v
-                                    WHERE id=:id AND username=:u""",
-                                  {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
-                                   "v": novo_valor, "id": id_servico, "u": st.session_state.username},
-                                  is_select=False)
-                        st.success("Alterações salvas com sucesso.")
-                        st.rerun()
-                with col_del:
-                    if st.button("🗑️ Excluir serviço", key=f"excluir_{id_servico}"):
-                        st.markdown("<div class='danger-card'><strong>Confirme a exclusão.</strong><br>Essa ação remove o registro permanentemente.</div>", unsafe_allow_html=True)
-                        confirmar = st.checkbox("Confirmo que desejo excluir este serviço.", key=f"conf_{id_servico}")
-                        if confirmar:
-                            run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
-                                      {"id": id_servico, "u": st.session_state.username}, is_select=False)
-                            st.success("Serviço excluído com sucesso.")
+                    try:
+                        indice_categoria = LISTA_SERVICOS.index(categoria)
+                    except ValueError:
+                        indice_categoria = 0
+                        st.warning(f"⚠️ A categoria original '{categoria}' não está mais disponível. Escolha a opção correta abaixo.")
+
+                    nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=indice_categoria, key=f"cat_{id_servico}")
+                    nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
+                    novo_valor = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=float(valor), format="%.2f", key=f"valor_{id_servico}")
+
+                    col_edit, col_del = st.columns(2)
+                    with col_edit:
+                        if st.button("💾 Salvar alterações", key=f"salvar_{id_servico}"):
+                            run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v
+                                        WHERE id=:id AND username=:u""",
+                                      {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
+                                       "v": novo_valor, "id": id_servico, "u": st.session_state.username},
+                                      is_select=False)
+                            st.session_state["limpar_servico_gerenciar"] = True
+                            registrar_feedback_operacao("Alterações salvas com sucesso.")
                             st.rerun()
+                    with col_del:
+                        if st.button("🗑️ Excluir serviço", key=f"excluir_{id_servico}"):
+                            st.markdown("<div class='danger-card'><strong>Confirme a exclusão.</strong><br>Essa ação remove o registro permanentemente.</div>", unsafe_allow_html=True)
+                            confirmar = st.checkbox("Confirmo que desejo excluir este serviço.", key=f"conf_{id_servico}")
+                            if confirmar:
+                                run_query("DELETE FROM servicos WHERE id=:id AND username=:u",
+                                          {"id": id_servico, "u": st.session_state.username}, is_select=False)
+                                st.session_state["limpar_servico_gerenciar"] = True
+                                registrar_feedback_operacao("Serviço excluído com sucesso.")
+                                st.rerun()
 
 with tab3:
     st.markdown("### 📊 Análise de faturamento")
@@ -492,6 +584,7 @@ with tab3:
                              labels={'categoria': 'Tipo de Serviço', 'valor': 'Valor (R$)'},
                              color_discrete_sequence=['#ffc4d8'])
             fig_rank.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
+            estilizar_grafico(fig_rank)
             st.plotly_chart(fig_rank, use_container_width=True)
 
             st.divider()
@@ -517,6 +610,7 @@ with tab3:
                                     labels={'periodo': 'Semana', 'valor': 'Valor (R$)'},
                                     color_discrete_sequence=['#ffc4d8'])
                 fig_semanal.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
+                estilizar_grafico(fig_semanal)
                 st.plotly_chart(fig_semanal, use_container_width=True)
 
 with tab4:
@@ -535,42 +629,48 @@ with tab4:
     # --- Formulário de movimentação (estilo card) ---
     with st.container(border=True):
         st.markdown("#### Registrar crédito ou débito")
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: João Silva")
-        with col2:
-            valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=0.5, format="%.2f", key="valor_cred")
+        with st.form("form_credito", clear_on_submit=True):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: João Silva")
+            with col2:
+                valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=0.5, format="%.2f", key="valor_cred")
 
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("➕ Adicionar Crédito", use_container_width=True, type="primary"):
-                if cliente_nome and valor_mov > 0:
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                adicionar_credito = st.form_submit_button("➕ Adicionar Crédito", use_container_width=True, type="primary")
+            with col_btn2:
+                usar_credito = st.form_submit_button("🔻 Usar Crédito", use_container_width=True)
+
+        if adicionar_credito:
+            if cliente_nome and valor_mov > 0:
+                run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
+                          {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": valor_mov,
+                           "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
+                st.session_state.credito_atualizado = True
+                registrar_feedback_operacao(
+                    f"Crédito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}."
+                )
+                st.rerun()
+            else:
+                st.warning("Preencha o nome do cliente e informe um valor positivo.")
+
+        if usar_credito:
+            if cliente_nome and valor_mov > 0:
+                saldo_atual = df_creds[df_creds['cliente'] == cliente_nome.upper()]['valor'].sum() if not df_creds.empty else 0
+                if saldo_atual >= valor_mov:
                     run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
-                              {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": valor_mov,
+                              {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": -valor_mov,
                                "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
                     st.session_state.credito_atualizado = True
-                    st.success(f"✅ Crédito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
-                    st.balloons()
+                    registrar_feedback_operacao(
+                        f"Débito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}."
+                    )
                     st.rerun()
                 else:
-                    st.warning("Preencha o nome do cliente e informe um valor positivo.")
-
-        with col_btn2:
-            if st.button("🔻 Usar Crédito", use_container_width=True):
-                if cliente_nome and valor_mov > 0:
-                    # Verificar se cliente tem saldo suficiente
-                    saldo_atual = df_creds[df_creds['cliente'] == cliente_nome.upper()]['valor'].sum() if not df_creds.empty else 0
-                    if saldo_atual >= valor_mov:
-                        run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
-                                  {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": -valor_mov,
-                                   "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
-                        st.session_state.credito_atualizado = True
-                        st.success(f"✅ Débito de R$ {valor_mov:.2f} registrado para {cliente_nome.upper()}.")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ Saldo insuficiente para {cliente_nome.upper()}. Saldo atual: R$ {saldo_atual:.2f}")
-                else:
-                    st.warning("Preencha o nome do cliente e informe um valor positivo.")
+                    st.error(f"❌ Saldo insuficiente para {cliente_nome.upper()}. Saldo atual: R$ {saldo_atual:.2f}")
+            else:
+                st.warning("Preencha o nome do cliente e informe um valor positivo.")
 
     st.divider()
 
@@ -616,23 +716,33 @@ with tab4:
         })
         df_display['Valor'] = df_display['Valor'].apply(lambda x: f"R$ {x:,.2f}")
 
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        exibir_tabela_responsiva(
+            df_display,
+            colunas_sem_quebra=["Data", "Valor"],
+        )
 
 with tab5:
     st.markdown("### 🧾 Gestão de despesas")
     st.caption("Cadastre categorias de gastos, registre despesas e acompanhe o resumo financeiro do período.")
 
+    tipo_map = {
+        int(row["id"]): row["nome"]
+        for _, row in df_expense_types.iterrows()
+    } if not df_expense_types.empty else {}
+
     col_tipo, col_lancamento = st.columns([1, 2])
     with col_tipo:
         st.markdown("#### Tipos de despesa")
-        novo_tipo = st.text_input("Novo tipo", placeholder="Ex: Papel, Energia, Limpeza", key="novo_tipo_despesa")
-        if st.button("Adicionar tipo", use_container_width=True):
+        with st.form("form_tipo_despesa", clear_on_submit=True):
+            novo_tipo = st.text_input("Novo tipo", placeholder="Ex: Papel, Energia, Limpeza", key="novo_tipo_despesa")
+            adicionar_tipo = st.form_submit_button("Adicionar tipo", use_container_width=True)
+
+        if adicionar_tipo:
             if novo_tipo.strip():
-                existente = df_expense_types[df_expense_types['nome'].str.upper() == novo_tipo.strip().upper()] if not df_expense_types.empty else pd.DataFrame()
-                if existente.empty:
+                if not nome_tipo_duplicado(df_expense_types, novo_tipo):
                     run_query("INSERT INTO tipos_despesa (username, nome) VALUES (:u, :n)",
                               {"u": st.session_state.username, "n": novo_tipo.strip().upper()}, is_select=False)
-                    st.success("Tipo de despesa adicionado com sucesso.")
+                    registrar_feedback_operacao("Tipo de despesa adicionado com sucesso.")
                     st.rerun()
                 else:
                     st.warning("Esse tipo de despesa já está cadastrado.")
@@ -641,26 +751,121 @@ with tab5:
         if df_expense_types.empty:
             st.info("Cadastre pelo menos um tipo de despesa para começar os lançamentos.")
         else:
-            st.dataframe(df_expense_types.rename(columns={"nome": "Tipo"})[["Tipo"]], use_container_width=True, hide_index=True)
+            exibir_tabela_responsiva(
+                df_expense_types.rename(columns={"nome": "Tipo"})[["Tipo"]]
+            )
+            st.markdown("##### Editar ou excluir")
+            if st.session_state.pop("limpar_tipo_gerenciar", False):
+                st.session_state.pop("tipo_despesa_gerenciar", None)
+
+            tipo_id_selecionado = st.selectbox(
+                "Selecione um tipo",
+                options=list(tipo_map.keys()),
+                format_func=lambda tipo_id: tipo_map[tipo_id],
+                index=None,
+                placeholder="Escolha um tipo de despesa",
+                key="tipo_despesa_gerenciar",
+            )
+
+            if tipo_id_selecionado is not None:
+                with st.form(f"form_gerenciar_tipo_{tipo_id_selecionado}"):
+                    nome_tipo_editado = st.text_input(
+                        "Nome do tipo",
+                        value=tipo_map[tipo_id_selecionado],
+                    )
+                    confirmar_exclusao_tipo = st.checkbox(
+                        "Confirmo que desejo excluir este tipo."
+                    )
+                    col_salvar_tipo, col_excluir_tipo = st.columns(2)
+                    with col_salvar_tipo:
+                        salvar_tipo = st.form_submit_button(
+                            "Salvar tipo",
+                            use_container_width=True,
+                            type="primary",
+                        )
+                    with col_excluir_tipo:
+                        excluir_tipo = st.form_submit_button(
+                            "Excluir tipo",
+                            use_container_width=True,
+                        )
+
+                if salvar_tipo:
+                    if not nome_tipo_editado.strip():
+                        st.warning("Informe um nome para o tipo de despesa.")
+                    elif nome_tipo_duplicado(
+                        df_expense_types,
+                        nome_tipo_editado,
+                        tipo_id_selecionado,
+                    ):
+                        st.warning("Já existe outro tipo de despesa com esse nome.")
+                    else:
+                        run_query(
+                            "UPDATE tipos_despesa SET nome=:n WHERE id=:id AND username=:u",
+                            {
+                                "n": nome_tipo_editado.strip().upper(),
+                                "id": tipo_id_selecionado,
+                                "u": st.session_state.username,
+                            },
+                            is_select=False,
+                        )
+                        st.session_state["limpar_tipo_gerenciar"] = True
+                        registrar_feedback_operacao("Tipo de despesa atualizado com sucesso.")
+                        st.rerun()
+
+                if excluir_tipo:
+                    despesas_vinculadas = contar_despesas_tipo(
+                        df_expenses,
+                        tipo_id_selecionado,
+                    )
+                    if despesas_vinculadas > 0:
+                        st.warning(
+                            f"Este tipo possui {despesas_vinculadas} despesa(s) vinculada(s). "
+                            "Reclassifique esses registros antes de excluir."
+                        )
+                    elif not confirmar_exclusao_tipo:
+                        st.warning("Marque a confirmação para excluir o tipo de despesa.")
+                    else:
+                        run_query(
+                            "DELETE FROM tipos_despesa WHERE id=:id AND username=:u",
+                            {
+                                "id": tipo_id_selecionado,
+                                "u": st.session_state.username,
+                            },
+                            is_select=False,
+                        )
+                        st.session_state["limpar_tipo_gerenciar"] = True
+                        registrar_feedback_operacao("Tipo de despesa excluído com sucesso.")
+                        st.rerun()
 
     with col_lancamento:
         st.markdown("#### Registrar despesa")
         if df_expense_types.empty:
             st.warning("Primeiro cadastre um tipo de despesa ao lado.")
         else:
-            data_despesa = st.date_input("Data da despesa", value=hoje, format="DD/MM/YYYY", key="data_despesa")
-            tipo_map = {row['nome']: int(row['id']) for _, row in df_expense_types.iterrows()}
-            tipo_nome = st.selectbox("Tipo de despesa", list(tipo_map.keys()), key="tipo_despesa")
-            desc_despesa = st.text_input("Descrição", placeholder="Ex: Compra de resma A4, reposição de tinta", key="desc_despesa")
-            valor_despesa = st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_despesa")
-            if st.button("Salvar despesa", use_container_width=True, type="primary"):
+            with st.form("form_nova_despesa", clear_on_submit=True):
+                data_despesa = st.date_input("Data da despesa", value=hoje, format="DD/MM/YYYY", key="data_despesa")
+                tipo_id_despesa = st.selectbox(
+                    "Tipo de despesa",
+                    options=list(tipo_map.keys()),
+                    format_func=lambda tipo_id: tipo_map[tipo_id],
+                    key="tipo_despesa",
+                )
+                desc_despesa = st.text_input("Descrição", placeholder="Ex: Compra de resma A4, reposição de tinta", key="desc_despesa")
+                valor_despesa = st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_despesa")
+                salvar_despesa = st.form_submit_button(
+                    "Salvar despesa",
+                    use_container_width=True,
+                    type="primary",
+                )
+
+            if salvar_despesa:
                 if valor_despesa > 0:
                     run_query("""INSERT INTO despesas (username, data, tipo_id, descricao, valor)
                                  VALUES (:u, :d, :t, :de, :v)""",
                               {"u": st.session_state.username, "d": data_despesa.strftime('%Y-%m-%d'),
-                               "t": tipo_map[tipo_nome], "de": desc_despesa, "v": valor_despesa},
+                               "t": tipo_id_despesa, "de": desc_despesa, "v": valor_despesa},
                               is_select=False)
-                    st.success("Despesa registrada com sucesso.")
+                    registrar_feedback_operacao("Despesa registrada com sucesso.")
                     st.rerun()
                 else:
                     st.warning("Informe um valor positivo para a despesa.")
@@ -694,9 +899,145 @@ with tab5:
                               labels={'tipo_nome': 'Tipo', 'valor': 'Valor (R$)'},
                               color_discrete_sequence=['#fda4af'])
             fig_desp.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
+            estilizar_grafico(fig_desp)
             st.plotly_chart(fig_desp, use_container_width=True)
             df_expenses_periodo['Data'] = df_expenses_periodo['data_dt'].dt.strftime('%d/%m/%Y')
             df_expenses_periodo['Tipo'] = df_expenses_periodo['tipo_nome']
             df_expenses_periodo['Descrição'] = df_expenses_periodo['descricao']
             df_expenses_periodo['Valor'] = df_expenses_periodo['valor'].apply(lambda x: f"R$ {x:,.2f}")
-            st.dataframe(df_expenses_periodo[['Data', 'Tipo', 'Descrição', 'Valor']], use_container_width=True, hide_index=True)
+            exibir_tabela_responsiva(
+                df_expenses_periodo[['Data', 'Tipo', 'Descrição', 'Valor']],
+                colunas_sem_quebra=["Data", "Valor"],
+            )
+
+            st.markdown("#### Gerenciar registros")
+            st.caption("Selecione uma despesa para editar, reclassificar ou excluir.")
+
+            despesa_map = {
+                int(row["id"]): (
+                    f"{pd.to_datetime(row['data']).strftime('%d/%m/%Y')} | "
+                    f"{row['tipo_nome'] if pd.notna(row['tipo_nome']) else 'SEM TIPO'} | "
+                    f"R$ {float(row['valor']):,.2f}"
+                )
+                for _, row in df_expenses_periodo.sort_values(
+                    "data_dt",
+                    ascending=False,
+                ).iterrows()
+                if pd.notna(row.get("id"))
+            }
+
+            if not despesa_map:
+                st.warning("Os registros encontrados não possuem identificação para edição.")
+            else:
+                if st.session_state.pop("limpar_despesa_gerenciar", False):
+                    st.session_state.pop("despesa_gerenciar", None)
+
+                despesa_id = st.selectbox(
+                    "Selecione uma despesa",
+                    options=list(despesa_map.keys()),
+                    format_func=lambda registro_id: despesa_map[registro_id],
+                    index=None,
+                    placeholder="Escolha um registro",
+                    key="despesa_gerenciar",
+                )
+
+                if despesa_id is not None and not tipo_map:
+                    st.warning(
+                        "Cadastre um tipo de despesa antes de editar este registro."
+                    )
+
+                if despesa_id is not None and tipo_map:
+                    despesa_row = df_expenses_periodo[
+                        df_expenses_periodo["id"] == despesa_id
+                    ].iloc[0]
+                    tipo_atual = (
+                        int(despesa_row["tipo_id"])
+                        if pd.notna(despesa_row["tipo_id"])
+                        else None
+                    )
+                    tipo_ids = list(tipo_map.keys())
+                    indice_tipo = (
+                        tipo_ids.index(tipo_atual)
+                        if tipo_atual in tipo_ids
+                        else 0
+                    )
+
+                    with st.form(f"form_gerenciar_despesa_{despesa_id}"):
+                        data_despesa_editada = st.date_input(
+                            "Data",
+                            value=pd.to_datetime(despesa_row["data"]).date(),
+                            format="DD/MM/YYYY",
+                        )
+                        tipo_despesa_editado = st.selectbox(
+                            "Tipo de despesa",
+                            options=tipo_ids,
+                            format_func=lambda tipo_id: tipo_map[tipo_id],
+                            index=indice_tipo,
+                        )
+                        descricao_despesa_editada = st.text_input(
+                            "Descrição",
+                            value=(
+                                ""
+                                if pd.isna(despesa_row["descricao"])
+                                else str(despesa_row["descricao"])
+                            ),
+                        )
+                        valor_despesa_editado = st.number_input(
+                            "Valor (R$)",
+                            min_value=0.0,
+                            step=1.0,
+                            value=float(despesa_row["valor"]),
+                            format="%.2f",
+                        )
+                        confirmar_exclusao_despesa = st.checkbox(
+                            "Confirmo que desejo excluir esta despesa."
+                        )
+                        col_salvar_despesa, col_excluir_despesa = st.columns(2)
+                        with col_salvar_despesa:
+                            salvar_despesa_editada = st.form_submit_button(
+                                "Salvar alterações",
+                                use_container_width=True,
+                                type="primary",
+                            )
+                        with col_excluir_despesa:
+                            excluir_despesa = st.form_submit_button(
+                                "Excluir despesa",
+                                use_container_width=True,
+                            )
+
+                    if salvar_despesa_editada:
+                        if valor_despesa_editado <= 0:
+                            st.warning("Informe um valor positivo para a despesa.")
+                        else:
+                            run_query(
+                                """UPDATE despesas SET data=:d, tipo_id=:t, descricao=:de, valor=:v
+                                   WHERE id=:id AND username=:u""",
+                                {
+                                    "d": data_despesa_editada.strftime('%Y-%m-%d'),
+                                    "t": tipo_despesa_editado,
+                                    "de": descricao_despesa_editada,
+                                    "v": valor_despesa_editado,
+                                    "id": despesa_id,
+                                    "u": st.session_state.username,
+                                },
+                                is_select=False,
+                            )
+                            st.session_state["limpar_despesa_gerenciar"] = True
+                            registrar_feedback_operacao("Despesa atualizada com sucesso.")
+                            st.rerun()
+
+                    if excluir_despesa:
+                        if not confirmar_exclusao_despesa:
+                            st.warning("Marque a confirmação para excluir a despesa.")
+                        else:
+                            run_query(
+                                "DELETE FROM despesas WHERE id=:id AND username=:u",
+                                {
+                                    "id": despesa_id,
+                                    "u": st.session_state.username,
+                                },
+                                is_select=False,
+                            )
+                            st.session_state["limpar_despesa_gerenciar"] = True
+                            registrar_feedback_operacao("Despesa excluída com sucesso.")
+                            st.rerun()
