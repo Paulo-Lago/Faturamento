@@ -30,6 +30,10 @@ LISTA_SERVICOS = [
     "⚙️ Outros"
 ]
 
+def data_atual_brasilia(agora_utc=None):
+    agora_utc = agora_utc or datetime.now(timezone.utc)
+    return agora_utc.astimezone(timezone(timedelta(hours=-3))).date()
+
 def aplicar_estilo_customizado():
     st.markdown(f"""
     <style>
@@ -344,17 +348,21 @@ df_expenses = run_query("""SELECT d.*, t.nome AS tipo_nome
                            WHERE d.username=:u""", {"u": st.session_state.username})
 df_expense_types = run_query("SELECT * FROM tipos_despesa WHERE username=:u ORDER BY nome", {"u": st.session_state.username})
 
-hoje = datetime.now().date()
+hoje = data_atual_brasilia()
 inicio_mes = hoje.replace(day=1)
 
+fat_dia = 0.0
+fat_mes = 0.0
 if not df_full.empty:
     df_full['data_dt'] = pd.to_datetime(df_full['data'])
     fat_dia = df_full[df_full['data_dt'].dt.date == hoje]['valor'].sum()
     fat_mes = df_full[df_full['data_dt'].dt.date >= inicio_mes]['valor'].sum()
-    m1, m2 = st.columns(2)
-    m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
-    m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
-else:
+
+m1, m2 = st.columns(2)
+m1.metric("Faturamento Hoje", f"R$ {fat_dia:,.2f}")
+m2.metric("Faturamento Mês", f"R$ {fat_mes:,.2f}")
+
+if df_full.empty:
     st.info("Comece cadastrando seu primeiro serviço para acompanhar o faturamento do dia e do mês.")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["➕ Novo serviço", "📊 Histórico", "📈 Análises", "💳 Créditos", "🧾 Despesas"])
