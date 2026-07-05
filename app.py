@@ -29,6 +29,21 @@ LISTA_SERVICOS = [
     "🛡️ Plastificação",
     "⚙️ Outros"
 ]
+CONFIG_GRAFICO_ESTATICO = {
+    "staticPlot": True,
+    "displayModeBar": False,
+    "scrollZoom": False,
+    "responsive": True,
+}
+
+
+def combinar_categorias(categorias):
+    return " + ".join(categorias)
+
+
+def separar_categorias(categoria):
+    return [item.strip() for item in str(categoria).split(" + ") if item.strip()]
+
 
 def data_atual_brasilia(agora_utc=None):
     agora_utc = agora_utc or datetime.now(timezone.utc)
@@ -126,9 +141,22 @@ def aplicar_estilo_customizado():
     input, textarea {{ color: #1f2937 !important; background-color: rgba(255, 255, 255, 0.96) !important; border-radius: 12px !important; }}
     div[data-baseweb=\"select\"] > div {{ background-color: #ffffff !important; border-radius: 12px !important; }}
     /* Botões */
-    button[data-testid=\"baseButton-secondary\"], .stButton > button {{
+    button[data-testid=\"baseButton-secondary\"],
+    button[data-testid=\"baseButton-primary\"],
+    button[data-testid=\"stBaseButton-secondary\"],
+    button[data-testid=\"stBaseButton-primary\"],
+    .stButton > button,
+    [data-testid=\"stFormSubmitButton\"] > button {{
         background-color: #ffe4ef !important; color: #1f2937 !important; border-radius: 14px !important;
         width: 100% !important; border: 1px solid #f9a8d4 !important; font-weight: 600 !important; min-height: 2.8rem !important;
+    }}
+    button[data-testid=\"baseButton-secondary\"] p,
+    button[data-testid=\"baseButton-primary\"] p,
+    button[data-testid=\"stBaseButton-secondary\"] p,
+    button[data-testid=\"stBaseButton-primary\"] p,
+    .stButton > button p,
+    [data-testid=\"stFormSubmitButton\"] > button p {{
+        color: #1f2937 !important;
     }}
     /* IMAGEM DE FUNDO */
     .main-bg-container {{
@@ -447,17 +475,24 @@ with tab1:
     st.caption("Registre rapidamente um atendimento ou venda realizada hoje.")
     with st.form("form_novo_servico", clear_on_submit=True):
         data_serv = st.date_input("Data", value=hoje, format="DD/MM/YYYY")
-        cat_serv = st.selectbox("Tipo", LISTA_SERVICOS)
+        cat_servicos = st.multiselect(
+            "Tipos de serviço",
+            LISTA_SERVICOS,
+            placeholder="Selecione um ou mais serviços",
+        )
         desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
         valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
         salvar_servico = st.form_submit_button("Salvar serviço", use_container_width=True)
 
     if salvar_servico:
-        run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)",
-                  {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'),
-                   "c": cat_serv, "de": desc_serv, "v": valor_serv}, is_select=False)
-        registrar_feedback_operacao("Serviço salvo com sucesso.")
-        st.rerun()
+        if not cat_servicos:
+            st.warning("Selecione pelo menos um serviço ou produto.")
+        else:
+            run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)",
+                      {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'),
+                       "c": combinar_categorias(cat_servicos), "de": desc_serv, "v": valor_serv}, is_select=False)
+            registrar_feedback_operacao("Serviço salvo com sucesso.")
+            st.rerun()
 
 with tab2:
     st.markdown("### Histórico de serviços")
@@ -516,27 +551,31 @@ with tab2:
                     valor = row['valor']
                     nova_data = st.date_input("Data", value=pd.to_datetime(row['data']).date(), format="DD/MM/YYYY", key=f"data_{id_servico}")
 
-                    try:
-                        indice_categoria = LISTA_SERVICOS.index(categoria)
-                    except ValueError:
-                        indice_categoria = 0
-                        st.warning(f"⚠️ A categoria original '{categoria}' não está mais disponível. Escolha a opção correta abaixo.")
-
-                    nova_cat = st.selectbox("Tipo", LISTA_SERVICOS, index=indice_categoria, key=f"cat_{id_servico}")
+                    categorias_atuais = separar_categorias(categoria)
+                    opcoes_categoria = list(dict.fromkeys(LISTA_SERVICOS + categorias_atuais))
+                    nova_cat = st.multiselect(
+                        "Tipos de serviço",
+                        opcoes_categoria,
+                        default=categorias_atuais,
+                        key=f"cat_{id_servico}",
+                    )
                     nova_desc = st.text_input("Detalhes", value=descricao, key=f"desc_{id_servico}")
                     novo_valor = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=float(valor), format="%.2f", key=f"valor_{id_servico}")
 
                     col_edit, col_del = st.columns(2)
                     with col_edit:
                         if st.button("💾 Salvar alterações", key=f"salvar_{id_servico}"):
-                            run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v
-                                        WHERE id=:id AND username=:u""",
-                                      {"d": nova_data.strftime('%Y-%m-%d'), "c": nova_cat, "de": nova_desc,
-                                       "v": novo_valor, "id": id_servico, "u": st.session_state.username},
-                                      is_select=False)
-                            st.session_state["limpar_servico_gerenciar"] = True
-                            registrar_feedback_operacao("Alterações salvas com sucesso.")
-                            st.rerun()
+                            if not nova_cat:
+                                st.warning("Selecione pelo menos um serviço ou produto.")
+                            else:
+                                run_query("""UPDATE servicos SET data=:d, categoria=:c, descricao=:de, valor=:v
+                                            WHERE id=:id AND username=:u""",
+                                          {"d": nova_data.strftime('%Y-%m-%d'), "c": combinar_categorias(nova_cat), "de": nova_desc,
+                                           "v": novo_valor, "id": id_servico, "u": st.session_state.username},
+                                          is_select=False)
+                                st.session_state["limpar_servico_gerenciar"] = True
+                                registrar_feedback_operacao("Alterações salvas com sucesso.")
+                                st.rerun()
                     with col_del:
                         if st.button("🗑️ Excluir serviço", key=f"excluir_{id_servico}"):
                             st.markdown("<div class='danger-card'><strong>Confirme a exclusão.</strong><br>Essa ação remove o registro permanentemente.</div>", unsafe_allow_html=True)
@@ -585,7 +624,7 @@ with tab3:
                              color_discrete_sequence=['#ffc4d8'])
             fig_rank.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             estilizar_grafico(fig_rank)
-            st.plotly_chart(fig_rank, use_container_width=True)
+            st.plotly_chart(fig_rank, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
 
             st.divider()
 
@@ -611,7 +650,7 @@ with tab3:
                                     color_discrete_sequence=['#ffc4d8'])
                 fig_semanal.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
                 estilizar_grafico(fig_semanal)
-                st.plotly_chart(fig_semanal, use_container_width=True)
+                st.plotly_chart(fig_semanal, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
 
 with tab4:
     st.markdown("### 💳 Gestão de créditos")
@@ -900,7 +939,7 @@ with tab5:
                               color_discrete_sequence=['#fda4af'])
             fig_desp.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             estilizar_grafico(fig_desp)
-            st.plotly_chart(fig_desp, use_container_width=True)
+            st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
             df_expenses_periodo['Data'] = df_expenses_periodo['data_dt'].dt.strftime('%d/%m/%Y')
             df_expenses_periodo['Tipo'] = df_expenses_periodo['tipo_nome']
             df_expenses_periodo['Descrição'] = df_expenses_periodo['descricao']
