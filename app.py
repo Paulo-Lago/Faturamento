@@ -455,7 +455,7 @@ with tab1:
         )
         desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
         valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=None, format="%.2f")
-        salvar_servico = st.form_submit_button("Salvar serviço", use_container_width=True)
+        salvar_servico = st.form_submit_button("Salvar serviço", width="stretch")
 
     if salvar_servico:
         if not cat_servicos:
@@ -610,7 +610,7 @@ with tab3:
             )
             fig_rank.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             estilizar_grafico(fig_rank)
-            st.plotly_chart(fig_rank, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
+            st.plotly_chart(fig_rank, width="stretch", config=CONFIG_GRAFICO_ESTATICO)
 
             st.divider()
 
@@ -647,7 +647,7 @@ with tab3:
                 )
                 fig_semanal.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
                 estilizar_grafico(fig_semanal)
-                st.plotly_chart(fig_semanal, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
+                st.plotly_chart(fig_semanal, width="stretch", config=CONFIG_GRAFICO_ESTATICO)
 
 with tab4:
     st.markdown("### 💳 Gestão de créditos")
@@ -674,9 +674,9 @@ with tab4:
 
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
-                adicionar_credito = st.form_submit_button("➕ Adicionar Crédito", use_container_width=True, type="primary")
+                adicionar_credito = st.form_submit_button("➕ Adicionar Crédito", width="stretch", type="primary")
             with col_btn2:
-                usar_credito = st.form_submit_button("🔻 Usar Crédito", use_container_width=True)
+                usar_credito = st.form_submit_button("🔻 Usar Crédito", width="stretch")
 
         if adicionar_credito:
             if cliente_nome and valor_mov is not None and valor_mov > 0:
@@ -771,7 +771,7 @@ with tab5:
         st.markdown("#### Tipos de despesa")
         with st.form("form_tipo_despesa", clear_on_submit=True):
             novo_tipo = st.text_input("Novo tipo", placeholder="Ex: Papel, Energia, Limpeza", key="novo_tipo_despesa")
-            adicionar_tipo = st.form_submit_button("Adicionar tipo", use_container_width=True)
+            adicionar_tipo = st.form_submit_button("Adicionar tipo", width="stretch")
 
         if adicionar_tipo:
             if novo_tipo.strip():
@@ -816,13 +816,13 @@ with tab5:
                     with col_salvar_tipo:
                         salvar_tipo = st.form_submit_button(
                             "Salvar tipo",
-                            use_container_width=True,
+                            width="stretch",
                             type="primary",
                         )
                     with col_excluir_tipo:
                         excluir_tipo = st.form_submit_button(
                             "Excluir tipo",
-                            use_container_width=True,
+                            width="stretch",
                         )
 
                 if salvar_tipo:
@@ -890,7 +890,7 @@ with tab5:
                 valor_despesa = st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, value=None, format="%.2f", key="valor_despesa")
                 salvar_despesa = st.form_submit_button(
                     "Salvar despesa",
-                    use_container_width=True,
+                    width="stretch",
                     type="primary",
                 )
 
@@ -947,7 +947,7 @@ with tab5:
             )
             fig_desp.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             estilizar_grafico(fig_desp)
-            st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
+            st.plotly_chart(fig_desp, width="stretch", config=CONFIG_GRAFICO_ESTATICO)
             df_expenses_periodo['Data'] = df_expenses_periodo['data_dt'].dt.strftime('%d/%m/%Y')
             df_expenses_periodo['Tipo'] = df_expenses_periodo['tipo_nome']
             df_expenses_periodo['Descrição'] = df_expenses_periodo['descricao']
@@ -1043,13 +1043,13 @@ with tab5:
                         with col_salvar_despesa:
                             salvar_despesa_editada = st.form_submit_button(
                                 "Salvar alterações",
-                                use_container_width=True,
+                                width="stretch",
                                 type="primary",
                             )
                         with col_excluir_despesa:
                             excluir_despesa = st.form_submit_button(
                                 "Excluir despesa",
-                                use_container_width=True,
+                                width="stretch",
                             )
 
                     if salvar_despesa_editada:
