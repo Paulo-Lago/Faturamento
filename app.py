@@ -593,10 +593,21 @@ with tab3:
             # --- Gráfico 1: Faturamento por Categoria ---
             st.markdown("### Faturamento por categoria")
             df_rank = df_periodo.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
-            fig_rank = px.bar(df_rank, x='categoria', y='valor',
-                             title="Serviços com maior faturamento no período",
-                             labels={'categoria': 'Tipo de Serviço', 'valor': 'Valor (R$)'},
-                             color_discrete_sequence=['#ffc4d8'])
+            fig_rank = px.bar(
+                df_rank,
+                x='categoria',
+                y='valor',
+                text='valor',
+                title="Serviços com maior faturamento no período",
+                labels={'categoria': 'Tipo de Serviço', 'valor': 'Valor (R$)'},
+                color_discrete_sequence=['#ffc4d8']
+            )
+
+            fig_rank.update_traces(
+                texttemplate='R$ %{y:,.2f}',
+                textposition='outside',
+                cliponaxis=False
+            )
             fig_rank.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             estilizar_grafico(fig_rank)
             st.plotly_chart(fig_rank, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
@@ -619,10 +630,21 @@ with tab3:
             if df_semana.empty:
                 st.info("Não há dados suficientes para montar o gráfico semanal nesse período.")
             else:
-                fig_semanal = px.bar(df_semana, x='periodo', y='valor',
-                                    title="Evolução semanal do faturamento",
-                                    labels={'periodo': 'Semana', 'valor': 'Valor (R$)'},
-                                    color_discrete_sequence=['#ffc4d8'])
+                fig_semanal = px.bar(
+                    df_semana,
+                    x='periodo',
+                    y='valor',
+                    text='valor',
+                    title="Evolução semanal do faturamento",
+                    labels={'periodo': 'Semana', 'valor': 'Valor (R$)'},
+                    color_discrete_sequence=['#ffc4d8']
+                )
+
+                fig_semanal.update_traces(
+                    texttemplate='R$ %{y:,.2f}',
+                    textposition='outside',
+                    cliponaxis=False
+                )
                 fig_semanal.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
                 estilizar_grafico(fig_semanal)
                 st.plotly_chart(fig_semanal, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
@@ -908,10 +930,21 @@ with tab5:
             total_desp = df_expenses_periodo['valor'].sum()
             st.metric("Total de despesas no período", f"R$ {total_desp:,.2f}")
             df_tipo_desp = df_expenses_periodo.groupby('tipo_nome')['valor'].sum().reset_index().sort_values('valor', ascending=False)
-            fig_desp = px.bar(df_tipo_desp, x='tipo_nome', y='valor',
-                              title="Despesas por tipo",
-                              labels={'tipo_nome': 'Tipo', 'valor': 'Valor (R$)'},
-                              color_discrete_sequence=['#fda4af'])
+            fig_desp = px.bar(
+                df_tipo_desp,
+                x='tipo_nome',
+                y='valor',
+                text='valor',
+                title="Despesas por tipo",
+                labels={'tipo_nome': 'Tipo', 'valor': 'Valor (R$)'},
+                color_discrete_sequence=['#fda4af']
+            )
+
+            fig_desp.update_traces(
+                texttemplate='R$ %{y:,.2f}',
+                textposition='outside',
+                cliponaxis=False
+            )
             fig_desp.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=10, r=10, t=60, b=10))
             estilizar_grafico(fig_desp)
             st.plotly_chart(fig_desp, use_container_width=True, config=CONFIG_GRAFICO_ESTATICO)
