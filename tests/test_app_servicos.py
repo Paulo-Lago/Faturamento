@@ -106,6 +106,24 @@ class InterfaceMobileTests(unittest.TestCase):
         self.assertIn("baseButton-primary", self.codigo)
         self.assertIn("color: #1f2937 !important", self.codigo)
 
+    def test_nao_usa_components_html_depreciado(self):
+        self.assertNotIn("streamlit.components.v1", self.codigo)
+        self.assertNotIn("components.html(", self.codigo)
+
+    def test_campos_de_novo_valor_iniciam_vazios(self):
+        self.assertIn(
+            'st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=None',
+            self.codigo,
+        )
+        self.assertIn(
+            'st.number_input("Valor (R$)", min_value=0.0, step=0.5, value=None',
+            self.codigo,
+        )
+        self.assertIn(
+            'st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, value=None',
+            self.codigo,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

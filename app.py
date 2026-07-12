@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, timedelta, timezone
@@ -203,34 +202,8 @@ def aplicar_estilo_customizado():
     <div class='main-bg-container'><img src='{URL_ICONE}' class='bg-image'></div>
     """, unsafe_allow_html=True)
 
-def aplicar_comportamento_inputs():
-    components.html(
-        """
-        <script>
-        const setupNumericFocus = () => {
-          const inputs = window.parent.document.querySelectorAll('input[type="number"]');
-          inputs.forEach((input) => {
-            if (input.dataset.autoSelectReady === "1") return;
-            input.dataset.autoSelectReady = "1";
-            input.addEventListener('focus', () => {
-              requestAnimationFrame(() => input.select());
-            });
-            input.addEventListener('mouseup', (event) => {
-              event.preventDefault();
-            });
-          });
-        };
-        setupNumericFocus();
-        const observer = new MutationObserver(setupNumericFocus);
-        observer.observe(window.parent.document.body, { childList: true, subtree: true });
-        </script>
-        """,
-        height=0,
-    )
-
 st.set_page_config(page_title="Gestão de Serviços Pro", layout="wide")
 aplicar_estilo_customizado()
-aplicar_comportamento_inputs()
 
 # --- CONEXÃO EXCLUSIVA COM SUPABASE ---
 @st.cache_resource
@@ -481,12 +454,14 @@ with tab1:
             placeholder="Selecione um ou mais serviços",
         )
         desc_serv = st.text_input("Detalhes", placeholder="Ex: 20 cópias coloridas, currículo, plastificação...")
-        valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, format="%.2f")
+        valor_serv = st.number_input("Valor (R$)", min_value=0.0, step=1.0, value=None, format="%.2f")
         salvar_servico = st.form_submit_button("Salvar serviço", use_container_width=True)
 
     if salvar_servico:
         if not cat_servicos:
             st.warning("Selecione pelo menos um serviço ou produto.")
+        elif valor_serv is None or valor_serv <= 0:
+            st.warning("Informe um valor positivo para o serviço.")
         else:
             run_query("INSERT INTO servicos (username, data, categoria, descricao, valor) VALUES (:u, :d, :c, :de, :v)",
                       {"u": st.session_state.username, "d": data_serv.strftime('%Y-%m-%d'),
@@ -673,7 +648,7 @@ with tab4:
             with col1:
                 cliente_nome = st.text_input("Nome do Cliente", key="cliente_cred", placeholder="Ex: João Silva")
             with col2:
-                valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=0.5, format="%.2f", key="valor_cred")
+                valor_mov = st.number_input("Valor (R$)", min_value=0.0, step=0.5, value=None, format="%.2f", key="valor_cred")
 
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
@@ -682,7 +657,7 @@ with tab4:
                 usar_credito = st.form_submit_button("🔻 Usar Crédito", use_container_width=True)
 
         if adicionar_credito:
-            if cliente_nome and valor_mov > 0:
+            if cliente_nome and valor_mov is not None and valor_mov > 0:
                 run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
                           {"u": st.session_state.username, "cl": cliente_nome.upper(), "v": valor_mov,
                            "d": hoje.strftime('%Y-%m-%d')}, is_select=False)
@@ -695,7 +670,7 @@ with tab4:
                 st.warning("Preencha o nome do cliente e informe um valor positivo.")
 
         if usar_credito:
-            if cliente_nome and valor_mov > 0:
+            if cliente_nome and valor_mov is not None and valor_mov > 0:
                 saldo_atual = df_creds[df_creds['cliente'] == cliente_nome.upper()]['valor'].sum() if not df_creds.empty else 0
                 if saldo_atual >= valor_mov:
                     run_query("INSERT INTO creditos (username, cliente, valor, data) VALUES (:u, :cl, :v, :d)",
@@ -890,7 +865,7 @@ with tab5:
                     key="tipo_despesa",
                 )
                 desc_despesa = st.text_input("Descrição", placeholder="Ex: Compra de resma A4, reposição de tinta", key="desc_despesa")
-                valor_despesa = st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, format="%.2f", key="valor_despesa")
+                valor_despesa = st.number_input("Valor da despesa (R$)", min_value=0.0, step=1.0, value=None, format="%.2f", key="valor_despesa")
                 salvar_despesa = st.form_submit_button(
                     "Salvar despesa",
                     use_container_width=True,
@@ -898,7 +873,7 @@ with tab5:
                 )
 
             if salvar_despesa:
-                if valor_despesa > 0:
+                if valor_despesa is not None and valor_despesa > 0:
                     run_query("""INSERT INTO despesas (username, data, tipo_id, descricao, valor)
                                  VALUES (:u, :d, :t, :de, :v)""",
                               {"u": st.session_state.username, "d": data_despesa.strftime('%Y-%m-%d'),
