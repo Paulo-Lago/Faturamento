@@ -590,6 +590,154 @@ with tab3:
             st.metric("💰 Faturamento Total no Período", f"R$ {total_periodo:,.2f}")
             st.divider()
 
+            # ======================================================
+            # DASHBOARD FINANCEIRO - RECEITAS x DESPESAS x LUCRO
+            # ======================================================
+
+            st.markdown("## 📊 Dashboard Financeiro")
+
+            # Buscar despesas do mesmo período do gráfico
+            if not df_expenses.empty:
+                df_expenses['data_dt'] = pd.to_datetime(df_expenses['data'])
+
+                df_desp_periodo_graf = df_expenses[
+                    (df_expenses['data_dt'].dt.date >= data_inicio_graf) &
+                    (df_expenses['data_dt'].dt.date <= data_fim_graf)
+                ].copy()
+
+                total_despesas_periodo = df_desp_periodo_graf['valor'].sum()
+
+            else:
+                total_despesas_periodo = 0
+
+
+            # Cálculo do lucro
+            lucro_liquido = total_periodo - total_despesas_periodo
+
+
+            # Cards financeiros
+            col_fin1, col_fin2, col_fin3 = st.columns(3)
+
+            with col_fin1:
+                st.metric(
+                    "💰 Receitas",
+                    f"R$ {total_periodo:,.2f}"
+                )
+
+            with col_fin2:
+                st.metric(
+                    "📉 Despesas",
+                    f"R$ {total_despesas_periodo:,.2f}"
+                )
+
+            with col_fin3:
+                st.metric(
+                    "📈 Lucro Líquido",
+                    f"R$ {lucro_liquido:,.2f}",
+                    delta=f"{(lucro_liquido / total_periodo * 100):.1f}% da receita" 
+                    if total_periodo > 0 else None
+                )
+
+
+            st.divider()
+
+
+            # Gráfico comparativo
+            df_financeiro = pd.DataFrame({
+                "Categoria": [
+                    "Receitas",
+                    "Despesas",
+                    "Lucro Líquido"
+                ],
+                "Valor": [
+                    total_periodo,
+                    total_despesas_periodo,
+                    lucro_liquido
+                ]
+            })
+
+
+            fig_financeiro = px.bar(
+                df_financeiro,
+                x="Categoria",
+                y="Valor",
+                text="Valor",
+                title="Resumo financeiro do período",
+                labels={
+                    "Categoria": "",
+                    "Valor": "Valor (R$)"
+                },
+                color="Categoria"
+            )
+
+
+            fig_financeiro.update_traces(
+                texttemplate="R$ %{y:,.2f}",
+                textposition="outside",
+                cliponaxis=False
+            )
+
+
+            fig_financeiro.update_layout(
+                showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                margin=dict(
+                    l=10,
+                    r=10,
+                    t=60,
+                    b=10
+                )
+            )
+
+
+            estilizar_grafico(fig_financeiro)
+
+            st.plotly_chart(
+                fig_financeiro,
+                width="stretch",
+                config=CONFIG_GRAFICO_ESTATICO
+            )
+
+
+            # Gráfico pizza distribuição financeira
+            st.markdown("### Distribuição do dinheiro")
+
+
+            df_pizza = pd.DataFrame({
+                "Tipo": [
+                    "Despesas",
+                    "Lucro"
+                ],
+                "Valor": [
+                    total_despesas_periodo,
+                    max(lucro_liquido, 0)
+                ]
+            })
+
+
+            fig_pizza = px.pie(
+                df_pizza,
+                values="Valor",
+                names="Tipo",
+                title="Destino da receita"
+            )
+
+
+            fig_pizza.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+            )
+
+
+            st.plotly_chart(
+                fig_pizza,
+                width="stretch",
+                config=CONFIG_GRAFICO_ESTATICO
+            )
+
+            st.divider()
+
+
             # --- Gráfico 1: Faturamento por Categoria ---
             st.markdown("### Faturamento por categoria")
             df_rank = df_periodo.groupby('categoria')['valor'].sum().reset_index().sort_values('valor', ascending=False)
