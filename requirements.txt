@@ -1,7 +1,7 @@
-streamlit
-pandas
 plotly>=6.0
 sqlalchemy
 psycopg2-binary
 PyJWT
-
+streamlit==1.46.0
+pandas==2.2.3
+numpy==2.0.2
