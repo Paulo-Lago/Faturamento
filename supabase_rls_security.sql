@@ -10,6 +10,8 @@ ALTER TABLE IF EXISTS public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.servicos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.creditos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.usuario_sessoes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.tipos_despesa ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.despesas ENABLE ROW LEVEL SECURITY;
 
 -- ========================================
 -- POLÍTICAS PARA TABELA: usuarios
@@ -263,12 +265,136 @@ END $$;
 -- ========================================
 -- CRIAR ÍNDICES PARA PERFORMANCE
 -- ========================================
+-- ========================================
+-- POLITICAS PARA TABELA: tipos_despesa
+-- ========================================
+-- SELECT: Usuario ve apenas seus proprios tipos de despesa
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can view own expense types' AND tablename = 'tipos_despesa'
+  ) THEN
+    CREATE POLICY "Users can view own expense types"
+    ON public.tipos_despesa
+    FOR SELECT
+    TO authenticated
+    USING (username = current_user);
+  END IF;
+END $$;
+
+-- INSERT: Usuario insere tipo de despesa apenas para si mesmo
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert own expense types' AND tablename = 'tipos_despesa'
+  ) THEN
+    CREATE POLICY "Users can insert own expense types"
+    ON public.tipos_despesa
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (username = current_user);
+  END IF;
+END $$;
+
+-- UPDATE: Usuario atualiza apenas seus proprios tipos de despesa
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can update own expense types' AND tablename = 'tipos_despesa'
+  ) THEN
+    CREATE POLICY "Users can update own expense types"
+    ON public.tipos_despesa
+    FOR UPDATE
+    TO authenticated
+    USING (username = current_user)
+    WITH CHECK (username = current_user);
+  END IF;
+END $$;
+
+-- DELETE: Usuario deleta apenas seus proprios tipos de despesa
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete own expense types' AND tablename = 'tipos_despesa'
+  ) THEN
+    CREATE POLICY "Users can delete own expense types"
+    ON public.tipos_despesa
+    FOR DELETE
+    TO authenticated
+    USING (username = current_user);
+  END IF;
+END $$;
+
+-- ========================================
+-- POLITICAS PARA TABELA: despesas
+-- ========================================
+-- SELECT: Usuario ve apenas suas proprias despesas
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can view own expenses' AND tablename = 'despesas'
+  ) THEN
+    CREATE POLICY "Users can view own expenses"
+    ON public.despesas
+    FOR SELECT
+    TO authenticated
+    USING (username = current_user);
+  END IF;
+END $$;
+
+-- INSERT: Usuario insere despesa apenas para si mesmo
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert own expenses' AND tablename = 'despesas'
+  ) THEN
+    CREATE POLICY "Users can insert own expenses"
+    ON public.despesas
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (username = current_user);
+  END IF;
+END $$;
+
+-- UPDATE: Usuario atualiza apenas suas proprias despesas
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can update own expenses' AND tablename = 'despesas'
+  ) THEN
+    CREATE POLICY "Users can update own expenses"
+    ON public.despesas
+    FOR UPDATE
+    TO authenticated
+    USING (username = current_user)
+    WITH CHECK (username = current_user);
+  END IF;
+END $$;
+
+-- DELETE: Usuario deleta apenas suas proprias despesas
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete own expenses' AND tablename = 'despesas'
+  ) THEN
+    CREATE POLICY "Users can delete own expenses"
+    ON public.despesas
+    FOR DELETE
+    TO authenticated
+    USING (username = current_user);
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_usuarios_username ON public.usuarios(username);
 CREATE INDEX IF NOT EXISTS idx_servicos_username ON public.servicos(username);
 CREATE INDEX IF NOT EXISTS idx_creditos_username ON public.creditos(username);
 CREATE INDEX IF NOT EXISTS idx_sessoes_username ON public.usuario_sessoes(username);
 CREATE INDEX IF NOT EXISTS idx_sessoes_token ON public.usuario_sessoes(token);
 CREATE INDEX IF NOT EXISTS idx_sessoes_expiracao ON public.usuario_sessoes(data_expiracao);
+CREATE INDEX IF NOT EXISTS idx_tipos_despesa_username ON public.tipos_despesa(username);
+CREATE INDEX IF NOT EXISTS idx_despesas_username ON public.despesas(username);
+CREATE INDEX IF NOT EXISTS idx_despesas_tipo_id ON public.despesas(tipo_id);
+CREATE INDEX IF NOT EXISTS idx_despesas_data ON public.despesas(data);
 
 -- ========================================
 -- ADICIONAR RESTRIÇÕES DE INTEGRIDADE
