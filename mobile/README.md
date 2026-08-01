@@ -57,8 +57,10 @@ cd android
 .\gradlew.bat assembleDebug --no-daemon
 ```
 
-APK gerado nesta máquina:
+APK release gerado nesta máquina, pronto para instalar sem Metro:
 
 ```text
-mobile/GraficaRapida-debug.apk
+mobile/GraficaRapida-release.apk
 ```
+
+Evite instalar `GraficaRapida-debug.apk` em celular comum. O APK debug depende do Metro rodando no computador e pode abrir com a tela vermelha `Unable to load script`.
