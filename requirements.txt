@@ -4,5 +4,3 @@ plotly>=6.0
 sqlalchemy
 psycopg2-binary
 PyJWT
-starlette
-uvicorn
