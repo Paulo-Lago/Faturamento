@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Faturamento",
+    "name": "Gráfica Rápida",
     "slug": "faturamento-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.graficarapida.faturamento",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       }

@@ -6,6 +6,8 @@ venv/
 mobile/node_modules/
 mobile/.expo/
 mobile/dist-check/
+mobile/android/
+mobile/*.apk
 .DS_Store
 *.pyc
 graphify-out/

@@ -38,3 +38,27 @@ npm start
 ```
 
 Abra com o Expo Go ou gere builds nativos com EAS quando a API estiver publicada.
+
+## Gerar APK
+
+O app está configurado com o nome `Gráfica Rápida` e package Android `com.graficarapida.faturamento`.
+
+Build em nuvem com EAS, quando estiver logado na conta Expo:
+
+```powershell
+npx eas-cli build --platform android --profile preview
+```
+
+Build local debug:
+
+```powershell
+npx expo prebuild --platform android --no-install
+cd android
+.\gradlew.bat assembleDebug --no-daemon
+```
+
+APK gerado nesta máquina:
+
+```text
+mobile/GraficaRapida-debug.apk
+```
