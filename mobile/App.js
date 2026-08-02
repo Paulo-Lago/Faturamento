@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -29,6 +31,7 @@ const LISTA_SERVICOS = [
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
+const todayBR = () => formatDateBR(today());
 const toNumber = (value) => Number(String(value || "0").replace(",", ".")) || 0;
 const money = (value) =>
   Number(value || 0).toLocaleString("pt-BR", {
@@ -41,6 +44,23 @@ const splitCategorias = (value) =>
     .split(" + ")
     .map((item) => item.trim())
     .filter(Boolean);
+
+const formatDateBR = (value) => {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return text;
+  return `${match[3]}/${match[2]}/${match[1]}`;
+};
+
+const parseDateBR = (value) => {
+  const text = String(value || "").trim();
+  const br = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  return null;
+};
+
+const formatDateLabel = (data, descricao) => `${formatDateBR(data)} · ${descricao || "Sem detalhes"}`;
 
 export default function App() {
   const [db, setDb] = useState(null);
@@ -151,7 +171,16 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff8fb" />
-      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+      <ScrollView
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+      >
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>Painel Financeiro</Text>
           <Text style={styles.heroText}>Registre vendas, despesas e créditos direto no celular, mesmo sem internet.</Text>
@@ -209,6 +238,7 @@ export default function App() {
           />
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -241,7 +271,7 @@ function Tabs({ value, onChange }) {
 }
 
 function Venda({ db, onDone }) {
-  const [data, setData] = useState(today());
+  const [data, setData] = useState(todayBR());
   const [categorias, setCategorias] = useState([]);
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -254,8 +284,13 @@ function Venda({ db, onDone }) {
 
   const salvar = async () => {
     const total = toNumber(valor);
+    const dataISO = parseDateBR(data);
     if (!categorias.length) {
       Alert.alert("Atenção", "Selecione pelo menos um serviço ou produto.");
+      return;
+    }
+    if (!dataISO) {
+      Alert.alert("Atenção", "Informe a data no formato DD/MM/AAAA.");
       return;
     }
     if (total <= 0) {
@@ -264,9 +299,9 @@ function Venda({ db, onDone }) {
     }
     await db.runAsync(
       "INSERT INTO servicos (data, categoria, descricao, valor) VALUES (?, ?, ?, ?)",
-      [data, categorias.join(" + "), descricao.trim(), total]
+      [dataISO, categorias.join(" + "), descricao.trim(), total]
     );
-    setData(today());
+    setData(todayBR());
     setCategorias([]);
     setDescricao("");
     setValor("");
@@ -276,7 +311,7 @@ function Venda({ db, onDone }) {
   return (
     <Section title="Novo serviço">
       <Text style={styles.caption}>Registre uma venda com um ou mais serviços/produtos e um valor total.</Text>
-      <Input label="Data" value={data} onChangeText={setData} placeholder="AAAA-MM-DD" />
+      <Input label="Data" value={data} onChangeText={setData} placeholder="DD/MM/AAAA" keyboardType="numbers-and-punctuation" />
       <Text style={styles.label}>Tipos de serviço</Text>
       <View style={styles.chipGrid}>
         {LISTA_SERVICOS.map((item) => (
@@ -314,7 +349,7 @@ function Historico({ db, items, onDone }) {
               <View style={styles.recordHeader}>
                 <View style={styles.recordText}>
                   <Text style={styles.recordTitle}>{item.categoria}</Text>
-                  <Text style={styles.recordMeta}>{item.data} · {item.descricao || "Sem detalhes"}</Text>
+                  <Text style={styles.recordMeta}>{formatDateLabel(item.data, item.descricao)}</Text>
                 </View>
                 <Text style={styles.recordValue}>{money(item.valor)}</Text>
               </View>
@@ -347,7 +382,7 @@ function Historico({ db, items, onDone }) {
 }
 
 function EditarServico({ item, db, onCancel, onDone }) {
-  const [data, setData] = useState(item.data);
+  const [data, setData] = useState(formatDateBR(item.data));
   const [categorias, setCategorias] = useState(splitCategorias(item.categoria));
   const [descricao, setDescricao] = useState(item.descricao || "");
   const [valor, setValor] = useState(String(item.valor || ""));
@@ -360,20 +395,25 @@ function EditarServico({ item, db, onCancel, onDone }) {
   };
 
   const salvar = async () => {
+    const dataISO = parseDateBR(data);
     if (!categorias.length || toNumber(valor) <= 0) {
       Alert.alert("Atenção", "Selecione serviço/produto e informe um valor positivo.");
       return;
     }
+    if (!dataISO) {
+      Alert.alert("Atenção", "Informe a data no formato DD/MM/AAAA.");
+      return;
+    }
     await db.runAsync(
       "UPDATE servicos SET data = ?, categoria = ?, descricao = ?, valor = ? WHERE id = ?",
-      [data, categorias.join(" + "), descricao.trim(), toNumber(valor), item.id]
+      [dataISO, categorias.join(" + "), descricao.trim(), toNumber(valor), item.id]
     );
     onDone();
   };
 
   return (
     <View>
-      <Input label="Data" value={data} onChangeText={setData} />
+      <Input label="Data" value={data} onChangeText={setData} keyboardType="numbers-and-punctuation" />
       <View style={styles.chipGrid}>
         {opcoes.map((option) => (
           <Chip key={option} label={option} active={categorias.includes(option)} onPress={() => toggle(option)} />
@@ -446,7 +486,7 @@ function Creditos({ db, items, onDone }) {
 function Despesas({ db, tipos, despesas, onDone }) {
   const [nomeTipo, setNomeTipo] = useState("");
   const [tipoId, setTipoId] = useState(null);
-  const [data, setData] = useState(today());
+  const [data, setData] = useState(todayBR());
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
 
@@ -466,17 +506,22 @@ function Despesas({ db, tipos, despesas, onDone }) {
 
   const salvarDespesa = async () => {
     const total = toNumber(valor);
+    const dataISO = parseDateBR(data);
     if (!tipoId || total <= 0) {
       Alert.alert("Atenção", "Selecione um tipo e informe um valor positivo.");
       return;
     }
+    if (!dataISO) {
+      Alert.alert("Atenção", "Informe a data no formato DD/MM/AAAA.");
+      return;
+    }
     await db.runAsync("INSERT INTO despesas (data, tipo_id, descricao, valor) VALUES (?, ?, ?, ?)", [
-      data,
+      dataISO,
       tipoId,
       descricao.trim(),
       total
     ]);
-    setData(today());
+    setData(todayBR());
     setDescricao("");
     setValor("");
     onDone("Despesa registrada.");
@@ -499,7 +544,7 @@ function Despesas({ db, tipos, despesas, onDone }) {
           ))}
         </View>
         {!tipos.length && <Text style={styles.caption}>Cadastre um tipo de despesa antes de registrar gastos.</Text>}
-        <Input label="Data" value={data} onChangeText={setData} />
+        <Input label="Data" value={data} onChangeText={setData} keyboardType="numbers-and-punctuation" />
         <Input label="Descrição" value={descricao} onChangeText={setDescricao} placeholder="Ex: resma A4" />
         <Input label="Valor (R$)" value={valor} onChangeText={setValor} keyboardType="decimal-pad" />
         <PrimaryButton label="Salvar despesa" onPress={salvarDespesa} />
@@ -511,7 +556,7 @@ function Despesas({ db, tipos, despesas, onDone }) {
             <View key={item.id} style={styles.line}>
               <View style={styles.lineText}>
                 <Text style={styles.lineTitle}>{item.tipo_nome || "Sem tipo"}</Text>
-                <Text style={styles.recordMeta}>{item.data} · {item.descricao || "Sem descrição"}</Text>
+                <Text style={styles.recordMeta}>{formatDateBR(item.data)} · {item.descricao || "Sem descrição"}</Text>
               </View>
               <Text style={styles.lineValue}>{money(item.valor)}</Text>
             </View>
@@ -582,9 +627,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff8fb"
   },
+  keyboard: {
+    flex: 1
+  },
   page: {
     padding: 16,
-    paddingBottom: 34,
+    paddingBottom: 140,
     backgroundColor: "#fff8fb"
   },
   center: {
@@ -740,8 +788,13 @@ const styles = StyleSheet.create({
     paddingVertical: 9
   },
   chipActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827"
+    backgroundColor: "#e11d48",
+    borderColor: "#9f1239",
+    shadowColor: "#9f1239",
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3
   },
   chipText: {
     color: "#374151",
