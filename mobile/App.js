@@ -63,6 +63,50 @@ const parseDateBR = (value) => {
 
 const formatDateLabel = (data, descricao) => `${formatDateBR(data)} · ${descricao || "Sem detalhes"}`;
 
+const monthKey = () => today().slice(0, 7);
+
+const sortRows = (rows) => rows.filter((row) => Number(row.value) !== 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+
+const somarPorCategoria = (servicos) => {
+  const totais = {};
+  servicos.forEach((item) => {
+    splitCategorias(item.categoria).forEach((categoria) => {
+      totais[categoria] = (totais[categoria] || 0) + Number(item.valor || 0);
+    });
+  });
+  return sortRows(Object.entries(totais).map(([label, value]) => ({ label, value })));
+};
+
+const somarPorTipoDespesa = (despesas) => {
+  const totais = {};
+  despesas.forEach((item) => {
+    const tipo = item.tipo_nome || "Sem tipo";
+    totais[tipo] = (totais[tipo] || 0) + Number(item.valor || 0);
+  });
+  return sortRows(Object.entries(totais).map(([label, value]) => ({ label, value })));
+};
+
+const somarPorSemana = (servicos) => {
+  const totais = {};
+  servicos.forEach((item) => {
+    const base = new Date(`${item.data}T12:00:00`);
+    if (Number.isNaN(base.getTime())) return;
+    const segunda = new Date(base);
+    segunda.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    const domingo = new Date(segunda);
+    domingo.setDate(segunda.getDate() + 6);
+    const key = segunda.toISOString().slice(0, 10);
+    const label = `${formatDateBR(key).slice(0, 5)} a ${formatDateBR(domingo.toISOString().slice(0, 10)).slice(0, 5)}`;
+    totais[key] = {
+      label,
+      value: (totais[key]?.value || 0) + Number(item.valor || 0)
+    };
+  });
+  return Object.entries(totais)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, row]) => row);
+};
+
 export default function App() {
   const [db, setDb] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -199,8 +243,6 @@ export default function App() {
           <Metric label="Saldo Créditos" value={money(resumo.saldoCreditos)} />
         </View>
 
-        <FinancialChart resumo={resumo} />
-
         <Tabs value={tab} onChange={setTab} />
 
         {tab === "venda" && (
@@ -222,6 +264,7 @@ export default function App() {
             }}
           />
         )}
+        {tab === "analises" && <Analises servicos={servicos} despesas={despesas} resumo={resumo} />}
         {tab === "creditos" && (
           <Creditos
             db={db}
@@ -291,37 +334,89 @@ function Balloons({ run }) {
   );
 }
 
-function FinancialChart({ resumo }) {
-  const rows = [
-    { label: "Hoje", value: resumo.faturamentoHoje, color: "#06b6d4" },
-    { label: "Mês", value: resumo.faturamentoMes, color: "#e11d48" },
-    { label: "Despesas", value: resumo.despesasMes, color: "#f97316" },
-    { label: "Créditos", value: Math.max(resumo.saldoCreditos, 0), color: "#2563eb" }
+function Analises({ servicos, despesas, resumo }) {
+  const mesAtual = monthKey();
+  const servicosMes = servicos.filter((item) => String(item.data || "").startsWith(mesAtual));
+  const despesasMes = despesas.filter((item) => String(item.data || "").startsWith(mesAtual));
+  const lucroMes = resumo.faturamentoMes - resumo.despesasMes;
+  const distribuicao = [
+    { label: "Despesas pagas", value: resumo.despesasMes, color: "#f97316" },
+    { label: "Lucro líquido", value: Math.max(lucroMes, 0), color: "#16a34a" }
   ];
-  const max = Math.max(...rows.map((row) => row.value), 1);
+
+  return (
+    <>
+      <Section title="Análises">
+        <Text style={styles.caption}>
+          Gráficos otimizados para celular, com valores exatos ao lado de cada indicador.
+        </Text>
+      </Section>
+      <BarChart
+        title="Financeiro do mês"
+        rows={[
+          { label: "Faturamento", value: resumo.faturamentoMes, color: "#e11d48" },
+          { label: "Despesas", value: resumo.despesasMes, color: "#f97316" },
+          { label: "Lucro líquido", value: lucroMes, color: lucroMes >= 0 ? "#16a34a" : "#dc2626" }
+        ]}
+        emptyText="Ainda não há dados financeiros neste mês."
+      />
+      <BarChart
+        title="Distribuição da receita"
+        rows={distribuicao}
+        emptyText="Registre faturamento e despesas para ver a distribuição."
+      />
+      <BarChart
+        title="Faturamento por serviço/produto"
+        rows={somarPorCategoria(servicosMes)}
+        emptyText="Nenhum serviço registrado neste mês."
+      />
+      <BarChart
+        title="Faturamento semanal"
+        rows={somarPorSemana(servicosMes)}
+        emptyText="Nenhum faturamento semanal disponível."
+      />
+      <BarChart
+        title="Despesas por tipo"
+        rows={somarPorTipoDespesa(despesasMes)}
+        emptyText="Nenhuma despesa registrada neste mês."
+      />
+    </>
+  );
+}
+
+function BarChart({ title, rows, emptyText }) {
+  const visibleRows = rows.filter((row) => Number(row.value) !== 0);
+  const max = Math.max(...visibleRows.map((row) => Math.abs(row.value)), 1);
 
   return (
     <View style={styles.chartCard}>
-      <Text style={styles.chartTitle}>Resumo visual</Text>
-      {rows.map((row) => (
-        <View key={row.label} style={styles.chartRow}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartLabel}>{row.label}</Text>
-            <Text style={styles.chartValue}>{money(row.value)}</Text>
+      <Text style={styles.chartTitle}>{title}</Text>
+      {visibleRows.length === 0 ? (
+        <Text style={styles.chartEmpty}>{emptyText}</Text>
+      ) : (
+        visibleRows.map((row) => (
+          <View key={row.label} style={styles.chartRow}>
+            <View style={styles.chartHeader}>
+              <Text style={styles.chartLabel} numberOfLines={2}>
+                {row.label}
+              </Text>
+              <Text style={[styles.chartValue, row.value < 0 && styles.chartValueDanger]}>{money(row.value)}</Text>
+            </View>
+            <View style={styles.chartTrack}>
+              <View
+                style={[
+                  styles.chartBar,
+                  row.value < 0 && styles.chartBarDanger,
+                  {
+                    backgroundColor: row.color || "#e11d48",
+                    width: `${Math.max(6, (Math.abs(row.value) / max) * 100)}%`
+                  }
+                ]}
+              />
+            </View>
           </View>
-          <View style={styles.chartTrack}>
-            <View
-              style={[
-                styles.chartBar,
-                {
-                  backgroundColor: row.color,
-                  width: `${Math.max(4, (row.value / max) * 100)}%`
-                }
-              ]}
-            />
-          </View>
-        </View>
-      ))}
+        ))
+      )}
     </View>
   );
 }
@@ -363,6 +458,7 @@ function Tabs({ value, onChange }) {
   const tabs = [
     ["venda", "Novo serviço"],
     ["historico", "Histórico"],
+    ["analises", "Análises"],
     ["creditos", "Créditos"],
     ["despesas", "Despesas"]
   ];
@@ -847,12 +943,18 @@ const styles = StyleSheet.create({
     marginBottom: 6
   },
   chartLabel: {
+    flex: 1,
     color: "#374151",
-    fontWeight: "900"
+    fontWeight: "900",
+    lineHeight: 20
   },
   chartValue: {
     color: "#111827",
-    fontWeight: "900"
+    fontWeight: "900",
+    textAlign: "right"
+  },
+  chartValueDanger: {
+    color: "#dc2626"
   },
   chartTrack: {
     height: 16,
@@ -863,6 +965,15 @@ const styles = StyleSheet.create({
   chartBar: {
     height: "100%",
     borderRadius: 999
+  },
+  chartBarDanger: {
+    backgroundColor: "#dc2626"
+  },
+  chartEmpty: {
+    color: "#6b7280",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "700"
   },
   tabs: {
     marginBottom: 14
