@@ -11,9 +11,13 @@
   },
   "dependencies": {
     "expo": "^57.0.9",
+    "expo-linear-gradient": "^57.0.1",
     "expo-sqlite": "~57.0.1",
+    "gifted-charts-core": "^0.1.81",
     "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react-native": "0.86.2",
+    "react-native-gifted-charts": "^1.4.77",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2"

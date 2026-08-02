@@ -12,9 +12,11 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View
 } from "react-native";
 import * as SQLite from "expo-sqlite";
+import { BarChart as GiftedBarChart, PieChart as GiftedPieChart } from "react-native-gifted-charts";
 
 const LISTA_SERVICOS = [
   "📄 Xérox",
@@ -33,11 +35,18 @@ const LISTA_SERVICOS = [
 
 const today = () => new Date().toISOString().slice(0, 10);
 const todayBR = () => formatDateBR(today());
+const inicioMesBR = () => formatDateBR(`${today().slice(0, 7)}-01`);
 const toNumber = (value) => Number(String(value || "0").replace(",", ".")) || 0;
 const money = (value) =>
   Number(value || 0).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL"
+  });
+const compactMoney = (value) =>
+  Number(value || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0
   });
 
 const splitCategorias = (value) =>
@@ -62,8 +71,6 @@ const parseDateBR = (value) => {
 };
 
 const formatDateLabel = (data, descricao) => `${formatDateBR(data)} · ${descricao || "Sem detalhes"}`;
-
-const monthKey = () => today().slice(0, 7);
 
 const sortRows = (rows) => rows.filter((row) => Number(row.value) !== 0).sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
 
@@ -234,7 +241,6 @@ export default function App() {
         </View>
 
         {!!toast && <Text style={styles.toast}>{toast}</Text>}
-        <Balloons run={balloonRun} />
 
         <View style={styles.metricGrid}>
           <Metric label="Faturamento Hoje" value={money(resumo.faturamentoHoje)} />
@@ -288,6 +294,7 @@ export default function App() {
         )}
       </ScrollView>
       </KeyboardAvoidingView>
+      <Balloons run={balloonRun} />
     </SafeAreaView>
   );
 }
@@ -334,59 +341,167 @@ function Balloons({ run }) {
   );
 }
 
-function Analises({ servicos, despesas, resumo }) {
-  const mesAtual = monthKey();
-  const servicosMes = servicos.filter((item) => String(item.data || "").startsWith(mesAtual));
-  const despesasMes = despesas.filter((item) => String(item.data || "").startsWith(mesAtual));
-  const lucroMes = resumo.faturamentoMes - resumo.despesasMes;
+function Analises({ servicos, despesas }) {
+  const [dataInicio, setDataInicio] = useState(inicioMesBR());
+  const [dataFim, setDataFim] = useState(todayBR());
+  const inicioISO = parseDateBR(dataInicio);
+  const fimISO = parseDateBR(dataFim);
+  const periodoInvalido = !inicioISO || !fimISO || inicioISO > fimISO;
+  const servicosPeriodo = periodoInvalido
+    ? []
+    : servicos.filter((item) => item.data >= inicioISO && item.data <= fimISO);
+  const despesasPeriodo = periodoInvalido
+    ? []
+    : despesas.filter((item) => item.data >= inicioISO && item.data <= fimISO);
+  const totalPeriodo = servicosPeriodo.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const totalDespesas = despesasPeriodo.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const lucroLiquido = totalPeriodo - totalDespesas;
+  const percentualLucro = totalPeriodo > 0 ? `${((lucroLiquido / totalPeriodo) * 100).toFixed(1)}% da receita` : "Sem receita";
   const distribuicao = [
-    { label: "Despesas pagas", value: resumo.despesasMes, color: "#f97316" },
-    { label: "Lucro líquido", value: Math.max(lucroMes, 0), color: "#16a34a" }
+    { label: "Despesas", value: totalDespesas, color: "#f97316" },
+    { label: "Lucro", value: Math.max(lucroLiquido, 0), color: "#16a34a" }
   ];
 
   return (
     <>
       <Section title="Análises">
         <Text style={styles.caption}>
-          Gráficos otimizados para celular, com valores exatos ao lado de cada indicador.
+          Use os filtros para visualizar o desempenho por categoria e por semana.
         </Text>
+        <View style={styles.filterGrid}>
+          <Input
+            label="Período - Data inicial"
+            value={dataInicio}
+            onChangeText={setDataInicio}
+            placeholder="DD/MM/AAAA"
+            keyboardType="numeric"
+          />
+          <Input
+            label="Período - Data final"
+            value={dataFim}
+            onChangeText={setDataFim}
+            placeholder="DD/MM/AAAA"
+            keyboardType="numeric"
+          />
+        </View>
+        {periodoInvalido ? (
+          <Text style={styles.warningText}>Confira as datas. A data inicial não pode ser maior que a data final.</Text>
+        ) : (
+          <Text style={styles.periodText}>
+            Período analisado: {formatDateBR(inicioISO)} a {formatDateBR(fimISO)}
+          </Text>
+        )}
       </Section>
-      <BarChart
-        title="Financeiro do mês"
-        rows={[
-          { label: "Faturamento", value: resumo.faturamentoMes, color: "#e11d48" },
-          { label: "Despesas", value: resumo.despesasMes, color: "#f97316" },
-          { label: "Lucro líquido", value: lucroMes, color: lucroMes >= 0 ? "#16a34a" : "#dc2626" }
-        ]}
-        emptyText="Ainda não há dados financeiros neste mês."
-      />
-      <BarChart
-        title="Distribuição da receita"
-        rows={distribuicao}
-        emptyText="Registre faturamento e despesas para ver a distribuição."
-      />
-      <BarChart
-        title="Faturamento por serviço/produto"
-        rows={somarPorCategoria(servicosMes)}
-        emptyText="Nenhum serviço registrado neste mês."
-      />
-      <BarChart
-        title="Faturamento semanal"
-        rows={somarPorSemana(servicosMes)}
-        emptyText="Nenhum faturamento semanal disponível."
-      />
-      <BarChart
-        title="Despesas por tipo"
-        rows={somarPorTipoDespesa(despesasMes)}
-        emptyText="Nenhuma despesa registrada neste mês."
-      />
+      {!periodoInvalido && servicosPeriodo.length === 0 ? (
+        <Empty text="Ainda não há dados nesse período. Ajuste os filtros ou registre novos serviços para visualizar os gráficos." />
+      ) : null}
+      {!periodoInvalido && servicosPeriodo.length > 0 ? (
+        <>
+          <View style={styles.analysisMetricGrid}>
+            <Metric label="Receitas" value={money(totalPeriodo)} />
+            <Metric label="Despesas" value={money(totalDespesas)} />
+            <Metric label="Lucro Líquido" value={money(lucroLiquido)} />
+            <Metric label="Margem" value={percentualLucro} />
+          </View>
+          <AnalysisBarChart
+            title="Resumo financeiro do período"
+            rows={[
+              { label: "Receitas", value: totalPeriodo, color: "#e11d48" },
+              { label: "Despesas", value: totalDespesas, color: "#f97316" },
+              { label: "Lucro Líquido", value: lucroLiquido, color: lucroLiquido >= 0 ? "#16a34a" : "#dc2626" }
+            ]}
+            emptyText="Ainda não há dados financeiros nesse período."
+          />
+          <DistributionChart title="Destino da receita" rows={distribuicao} total={totalPeriodo} />
+          <AnalysisBarChart
+            title="Serviços com maior faturamento no período"
+            rows={somarPorCategoria(servicosPeriodo).map((row) => ({ ...row, color: "#ffc4d8" }))}
+            emptyText="Nenhum serviço registrado nesse período."
+          />
+          <AnalysisBarChart
+            title="Evolução semanal do faturamento"
+            rows={somarPorSemana(servicosPeriodo).map((row) => ({ ...row, color: "#ffc4d8" }))}
+            emptyText="Não há dados suficientes para montar o gráfico semanal nesse período."
+          />
+          <AnalysisBarChart
+            title="Despesas por tipo"
+            rows={somarPorTipoDespesa(despesasPeriodo).map((row) => ({ ...row, color: "#f97316" }))}
+            emptyText="Nenhuma despesa registrada nesse período."
+          />
+        </>
+      ) : null}
     </>
   );
 }
 
-function BarChart({ title, rows, emptyText }) {
+function DistributionChart({ title, rows, total }) {
+  const visibleRows = rows.filter((row) => Number(row.value) > 0);
+  const pieData = visibleRows.map((row) => ({
+    value: row.value,
+    color: row.color,
+    text: `${((row.value / total) * 100).toFixed(0)}%`
+  }));
+
+  return (
+    <View style={styles.chartCard}>
+      <Text style={styles.chartTitle}>{title}</Text>
+      {visibleRows.length === 0 || total <= 0 ? (
+        <Text style={styles.chartEmpty}>Registre faturamento e despesas para ver a distribuição.</Text>
+      ) : (
+        <>
+          <View pointerEvents="none" style={styles.pieWrap}>
+            <GiftedPieChart
+              data={pieData}
+              donut
+              radius={82}
+              innerRadius={52}
+              innerCircleColor="#ffffff"
+              strokeColor="#ffffff"
+              strokeWidth={3}
+              showText
+              textColor="#111827"
+              textSize={12}
+              fontWeight="900"
+              rotatable={false}
+              focusOnPress={false}
+              edgesPressable={false}
+              centerLabelComponent={() => (
+                <View style={styles.pieCenter}>
+                  <Text style={styles.pieCenterLabel}>Receita</Text>
+                  <Text style={styles.pieCenterValue}>{compactMoney(total)}</Text>
+                </View>
+              )}
+            />
+          </View>
+          {visibleRows.map((row) => (
+            <View key={row.label} style={styles.distributionLegend}>
+              <View style={[styles.legendDot, { backgroundColor: row.color }]} />
+              <Text style={styles.chartLabel}>{row.label}</Text>
+              <Text style={styles.chartValue}>
+                {money(row.value)} · {((row.value / total) * 100).toFixed(1)}%
+              </Text>
+            </View>
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
+
+function AnalysisBarChart({ title, rows, emptyText }) {
+  const { width } = useWindowDimensions();
   const visibleRows = rows.filter((row) => Number(row.value) !== 0);
   const max = Math.max(...visibleRows.map((row) => Math.abs(row.value)), 1);
+  const chartWidth = Math.max(250, Math.min(width - 78, 360));
+  const barWidth = Math.max(26, Math.min(42, chartWidth / Math.max(visibleRows.length, 1) - 18));
+  const chartData = visibleRows.slice(0, 8).map((row) => ({
+    value: Math.abs(row.value),
+    label: row.label.length > 12 ? `${row.label.slice(0, 10)}...` : row.label,
+    frontColor: row.value < 0 ? "#dc2626" : row.color || "#e11d48",
+    topLabelComponent: () => (
+      <Text style={[styles.chartTopLabel, row.value < 0 && styles.chartValueDanger]}>{compactMoney(row.value)}</Text>
+    )
+  }));
 
   return (
     <View style={styles.chartCard}>
@@ -394,28 +509,46 @@ function BarChart({ title, rows, emptyText }) {
       {visibleRows.length === 0 ? (
         <Text style={styles.chartEmpty}>{emptyText}</Text>
       ) : (
-        visibleRows.map((row) => (
-          <View key={row.label} style={styles.chartRow}>
-            <View style={styles.chartHeader}>
+        <>
+          <View pointerEvents="none" style={styles.nativeChartWrap}>
+            <GiftedBarChart
+              data={chartData}
+              width={chartWidth}
+              height={190}
+              maxValue={Math.ceil(max * 1.18)}
+              noOfSections={4}
+              barWidth={barWidth}
+              spacing={12}
+              initialSpacing={12}
+              endSpacing={12}
+              roundedTop
+              roundedBottom
+              disablePress
+              disableScroll
+              hideRules={false}
+              rulesColor="#fce7f3"
+              rulesThickness={1}
+              xAxisColor="#f9a8d4"
+              yAxisColor="#f9a8d4"
+              yAxisLabelWidth={50}
+              yAxisTextStyle={styles.chartAxisText}
+              xAxisLabelTextStyle={styles.chartAxisText}
+              xAxisTextNumberOfLines={2}
+              topLabelContainerStyle={styles.chartTopLabelContainer}
+              backgroundColor="transparent"
+              formatYLabel={(label) => compactMoney(Number(label)).replace("R$", "").trim()}
+            />
+          </View>
+          {visibleRows.map((row) => (
+            <View key={row.label} style={styles.chartLegendRow}>
+              <View style={[styles.legendDot, { backgroundColor: row.value < 0 ? "#dc2626" : row.color || "#e11d48" }]} />
               <Text style={styles.chartLabel} numberOfLines={2}>
                 {row.label}
               </Text>
               <Text style={[styles.chartValue, row.value < 0 && styles.chartValueDanger]}>{money(row.value)}</Text>
             </View>
-            <View style={styles.chartTrack}>
-              <View
-                style={[
-                  styles.chartBar,
-                  row.value < 0 && styles.chartBarDanger,
-                  {
-                    backgroundColor: row.color || "#e11d48",
-                    width: `${Math.max(6, (Math.abs(row.value) / max) * 100)}%`
-                  }
-                ]}
-              />
-            </View>
-          </View>
-        ))
+          ))}
+        </>
       )}
     </View>
   );
@@ -882,7 +1015,8 @@ const styles = StyleSheet.create({
     right: 0,
     top: 155,
     height: 120,
-    zIndex: 20
+    zIndex: 50,
+    elevation: 8
   },
   balloon: {
     position: "absolute",
@@ -898,6 +1032,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 10,
     marginBottom: 12
+  },
+  analysisMetricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 14
   },
   metric: {
     flexBasis: "47%",
@@ -922,10 +1062,15 @@ const styles = StyleSheet.create({
   chartCard: {
     backgroundColor: "rgba(255,255,255,0.96)",
     borderWidth: 1,
-    borderColor: "rgba(249,168,212,0.35)",
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 14
+    borderColor: "rgba(249,168,212,0.5)",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: "#831843",
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 1
   },
   chartTitle: {
     color: "#111827",
@@ -956,9 +1101,39 @@ const styles = StyleSheet.create({
   chartValueDanger: {
     color: "#dc2626"
   },
+  nativeChartWrap: {
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 14,
+    overflow: "hidden"
+  },
+  chartAxisText: {
+    color: "#111827",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  chartTopLabelContainer: {
+    minWidth: 46,
+    alignItems: "center"
+  },
+  chartTopLabel: {
+    color: "#111827",
+    fontSize: 9,
+    fontWeight: "900"
+  },
+  chartLegendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#fdf2f8"
+  },
   chartTrack: {
-    height: 16,
-    backgroundColor: "#f3f4f6",
+    height: 18,
+    backgroundColor: "#fdf2f8",
+    borderWidth: 1,
+    borderColor: "#fce7f3",
     borderRadius: 999,
     overflow: "hidden"
   },
@@ -974,6 +1149,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: "700"
+  },
+  filterGrid: {
+    gap: 4
+  },
+  warningText: {
+    color: "#9f1239",
+    backgroundColor: "#ffe4e6",
+    borderWidth: 1,
+    borderColor: "#fecdd3",
+    borderRadius: 12,
+    padding: 10,
+    fontWeight: "800",
+    lineHeight: 20
+  },
+  periodText: {
+    color: "#374151",
+    backgroundColor: "#fdf2f8",
+    borderRadius: 12,
+    padding: 10,
+    fontWeight: "800"
+  },
+  distributionBar: {
+    height: 24,
+    flexDirection: "row",
+    overflow: "hidden",
+    borderRadius: 999,
+    backgroundColor: "#fdf2f8",
+    borderWidth: 1,
+    borderColor: "#fce7f3",
+    marginBottom: 12
+  },
+  distributionSegment: {
+    height: "100%"
+  },
+  pieWrap: {
+    alignItems: "center",
+    marginVertical: 8
+  },
+  pieCenter: {
+    alignItems: "center"
+  },
+  pieCenterLabel: {
+    color: "#6b7280",
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  pieCenterValue: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  distributionLegend: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8
+  },
+  legendDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 999
   },
   tabs: {
     marginBottom: 14
