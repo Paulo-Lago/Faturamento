@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -71,9 +72,11 @@ export default function App() {
   const [tiposDespesa, setTiposDespesa] = useState([]);
   const [despesas, setDespesas] = useState([]);
   const [toast, setToast] = useState("");
+  const [balloonRun, setBalloonRun] = useState(0);
 
   const avisar = (message) => {
     setToast(message);
+    setBalloonRun((current) => current + 1);
     setTimeout(() => setToast(""), 3200);
   };
 
@@ -187,6 +190,7 @@ export default function App() {
         </View>
 
         {!!toast && <Text style={styles.toast}>{toast}</Text>}
+        <Balloons run={balloonRun} />
 
         <View style={styles.metricGrid}>
           <Metric label="Faturamento Hoje" value={money(resumo.faturamentoHoje)} />
@@ -194,6 +198,8 @@ export default function App() {
           <Metric label="Despesas Mês" value={money(resumo.despesasMes)} />
           <Metric label="Saldo Créditos" value={money(resumo.saldoCreditos)} />
         </View>
+
+        <FinancialChart resumo={resumo} />
 
         <Tabs value={tab} onChange={setTab} />
 
@@ -248,6 +254,107 @@ function Metric({ label, value }) {
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function Balloons({ run }) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!run) return;
+    progress.setValue(0);
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 1800,
+      useNativeDriver: true
+    }).start();
+  }, [progress, run]);
+
+  if (!run) return null;
+
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [60, -190]
+  });
+  const opacity = progress.interpolate({
+    inputRange: [0, 0.75, 1],
+    outputRange: [0, 1, 0]
+  });
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.balloons, { opacity, transform: [{ translateY }] }]}>
+      {["#e11d48", "#06b6d4", "#facc15", "#2563eb", "#ec4899"].map((color, index) => (
+        <View key={color} style={[styles.balloon, { backgroundColor: color, left: `${10 + index * 18}%` }]} />
+      ))}
+    </Animated.View>
+  );
+}
+
+function FinancialChart({ resumo }) {
+  const rows = [
+    { label: "Hoje", value: resumo.faturamentoHoje, color: "#06b6d4" },
+    { label: "Mês", value: resumo.faturamentoMes, color: "#e11d48" },
+    { label: "Despesas", value: resumo.despesasMes, color: "#f97316" },
+    { label: "Créditos", value: Math.max(resumo.saldoCreditos, 0), color: "#2563eb" }
+  ];
+  const max = Math.max(...rows.map((row) => row.value), 1);
+
+  return (
+    <View style={styles.chartCard}>
+      <Text style={styles.chartTitle}>Resumo visual</Text>
+      {rows.map((row) => (
+        <View key={row.label} style={styles.chartRow}>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartLabel}>{row.label}</Text>
+            <Text style={styles.chartValue}>{money(row.value)}</Text>
+          </View>
+          <View style={styles.chartTrack}>
+            <View
+              style={[
+                styles.chartBar,
+                {
+                  backgroundColor: row.color,
+                  width: `${Math.max(4, (row.value / max) * 100)}%`
+                }
+              ]}
+            />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function ServiceSelector({ selected, onToggle, options = LISTA_SERVICOS }) {
+  const [open, setOpen] = useState(false);
+  const summary = selected.length ? selected.join(" + ") : "Toque para selecionar serviços/produtos";
+
+  return (
+    <View style={styles.selectorWrap}>
+      <Text style={styles.label}>Tipos de serviço</Text>
+      <Pressable style={[styles.selectorBox, open && styles.selectorBoxOpen]} onPress={() => setOpen((value) => !value)}>
+        <Text style={[styles.selectorText, !selected.length && styles.selectorPlaceholder]}>{summary}</Text>
+        <Text style={styles.selectorArrow}>{open ? "▲" : "▼"}</Text>
+      </Pressable>
+      {open && (
+        <View style={styles.selectorPanel}>
+          {options.map((item) => (
+            <Pressable
+              key={item}
+              style={[styles.serviceOption, selected.includes(item) && styles.serviceOptionActive]}
+              onPress={() => onToggle(item)}
+            >
+              <Text style={[styles.serviceOptionText, selected.includes(item) && styles.serviceOptionTextActive]}>
+                {item}
+              </Text>
+              <Text style={[styles.serviceCheck, selected.includes(item) && styles.serviceCheckActive]}>
+                {selected.includes(item) ? "✓" : ""}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -312,12 +419,7 @@ function Venda({ db, onDone }) {
     <Section title="Novo serviço">
       <Text style={styles.caption}>Registre uma venda com um ou mais serviços/produtos e um valor total.</Text>
       <Input label="Data" value={data} onChangeText={setData} placeholder="DD/MM/AAAA" keyboardType="numbers-and-punctuation" />
-      <Text style={styles.label}>Tipos de serviço</Text>
-      <View style={styles.chipGrid}>
-        {LISTA_SERVICOS.map((item) => (
-          <Chip key={item} label={item} active={categorias.includes(item)} onPress={() => toggle(item)} />
-        ))}
-      </View>
+      <ServiceSelector selected={categorias} onToggle={toggle} />
       <Input label="Detalhes" value={descricao} onChangeText={setDescricao} placeholder="Ex: 20 cópias, plastificação..." />
       <Input label="Valor (R$)" value={valor} onChangeText={setValor} keyboardType="decimal-pad" placeholder="0,00" />
       <PrimaryButton label="Salvar serviço" onPress={salvar} />
@@ -414,11 +516,7 @@ function EditarServico({ item, db, onCancel, onDone }) {
   return (
     <View>
       <Input label="Data" value={data} onChangeText={setData} keyboardType="numbers-and-punctuation" />
-      <View style={styles.chipGrid}>
-        {opcoes.map((option) => (
-          <Chip key={option} label={option} active={categorias.includes(option)} onPress={() => toggle(option)} />
-        ))}
-      </View>
+      <ServiceSelector selected={categorias} onToggle={toggle} options={opcoes} />
       <Input label="Detalhes" value={descricao} onChangeText={setDescricao} />
       <Input label="Valor (R$)" value={valor} onChangeText={setValor} keyboardType="decimal-pad" />
       <View style={styles.actions}>
@@ -632,6 +730,7 @@ const styles = StyleSheet.create({
   },
   page: {
     padding: 16,
+    paddingTop: 34,
     paddingBottom: 140,
     backgroundColor: "#fff8fb"
   },
@@ -681,6 +780,23 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 12
   },
+  balloons: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 155,
+    height: 120,
+    zIndex: 20
+  },
+  balloon: {
+    position: "absolute",
+    bottom: 0,
+    width: 24,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.85)"
+  },
   metricGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -706,6 +822,47 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 19,
     fontWeight: "900"
+  },
+  chartCard: {
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1,
+    borderColor: "rgba(249,168,212,0.35)",
+    borderRadius: 18,
+    padding: 15,
+    marginBottom: 14
+  },
+  chartTitle: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 10
+  },
+  chartRow: {
+    marginBottom: 12
+  },
+  chartHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 6
+  },
+  chartLabel: {
+    color: "#374151",
+    fontWeight: "900"
+  },
+  chartValue: {
+    color: "#111827",
+    fontWeight: "900"
+  },
+  chartTrack: {
+    height: 16,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 999,
+    overflow: "hidden"
+  },
+  chartBar: {
+    height: "100%",
+    borderRadius: 999
   },
   tabs: {
     marginBottom: 14
@@ -772,6 +929,83 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     color: "#111827",
     fontSize: 16
+  },
+  selectorWrap: {
+    marginBottom: 12
+  },
+  selectorBox: {
+    minHeight: 52,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  selectorBoxOpen: {
+    borderColor: "#e11d48",
+    backgroundColor: "#fff1f2"
+  },
+  selectorText: {
+    flex: 1,
+    color: "#111827",
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "800"
+  },
+  selectorPlaceholder: {
+    color: "#6b7280",
+    fontWeight: "700"
+  },
+  selectorArrow: {
+    color: "#9f1239",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  selectorPanel: {
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: "#fecdd3",
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    padding: 8
+  },
+  serviceOption: {
+    minHeight: 46,
+    borderRadius: 11,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    marginBottom: 6,
+    backgroundColor: "#f9fafb",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8
+  },
+  serviceOptionActive: {
+    backgroundColor: "#e11d48"
+  },
+  serviceOptionText: {
+    flex: 1,
+    color: "#374151",
+    fontWeight: "800"
+  },
+  serviceOptionTextActive: {
+    color: "#ffffff"
+  },
+  serviceCheck: {
+    width: 22,
+    color: "#ffffff",
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  serviceCheckActive: {
+    color: "#ffffff"
   },
   chipGrid: {
     flexDirection: "row",
